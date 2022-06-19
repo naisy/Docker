@@ -1,0 +1,554 @@
+########################################
+# Docker build
+########################################
+#time sudo docker build -t naisy/jetson-jp461-deepstream601-triton-ros2-humble -f Dockerfile.jetson-jp461-deepstream601-triton-ros2-humble .
+
+
+########################################
+# Storage setting
+########################################
+#sudo service docker stop
+#cd /var/run
+#sudo mv docker /mnt/ssd250
+#sudo ln -s /mnt/ssd250 docker
+#sudo service docker start
+
+# https://github.com/NVIDIA/nvidia-docker/issues/1033
+# cmake fails unable to find cuda library while building an image
+#vi /etc/docker/daemon.json
+#{
+#    "runtimes": {
+#        "nvidia": {
+#            "path": "/usr/bin/nvidia-container-runtime",
+#            "runtimeArgs": []
+#        }
+#    },
+#    "default-runtime": "nvidia"
+#}
+#
+#service docker stop
+#service docker start
+
+
+# end of information
+
+
+########################################
+# Base OS repogitory
+########################################
+# DeepStream-l4t tags: https://catalog.ngc.nvidia.com/orgs/nvidia/containers/deepstream-l4t/tags
+
+# JetPack 4.6.1
+# ARG BASE_IMAGE=nvcr.io/nvidia/deepstream-l4t:6.0.1-triton
+# JetPack 4.6
+# ARG BASE_IMAGE=nvcr.io/nvidia/deepstream-l4t:6.0-samples
+# JetPack 4.4
+# ARG BASE_IMAGE=nvcr.io/nvidia/deepstream-l4t:5.0-20.07-samples
+# JetPack 4.4.1
+# ARG BASE_IMAGE=nvcr.io/nvidia/deepstream-l4t:5.0.1-20.09-samples
+
+ARG BASE_IMAGE=naisy/jetson-jp461-deepstream601-triton-base
+FROM ${BASE_IMAGE}
+
+ARG USERNAME=jetson
+ARG OPENBLAS_CORETYPE=ARMV8
+ARG VENV=python3
+
+
+########################################
+# pyqt5
+########################################
+USER $USERNAME
+RUN . /virtualenv/$VENV/bin/activate \
+    && sudo apt-get update \
+    && sudo apt-get install -y \
+      qt5-default \
+    && pip install -U \
+      pyqt5-sip \
+      pyqt5 \
+      sip \
+    && sudo apt autoremove -y \
+    && sudo rm -rf /var/lib/apt/lists/*
+
+
+
+########################################
+# ROS2
+########################################
+
+########################################
+# compile yaml-cpp-0.7, which some ROS packages may use (but is not in the 18.04 apt repo)
+########################################
+USER root
+RUN mkdir -p /github \
+    && cd /github \
+    && git clone --branch yaml-cpp-0.7.0 https://github.com/jbeder/yaml-cpp yaml-cpp-0.7 \
+    && cd yaml-cpp-0.7 \
+    && mkdir build \
+    && cd build \
+    && cmake -DBUILD_SHARED_LIBS=ON .. \
+    && make -j$(nproc) \
+    && make install \
+    && cp libyaml-cpp.so.0.7.0 /usr/lib/aarch64-linux-gnu/ \
+    && ln -s /usr/lib/aarch64-linux-gnu/libyaml-cpp.so.0.7.0 /usr/lib/aarch64-linux-gnu/libyaml-cpp.so.0.7
+
+
+########################################
+# behaviortree_cpp_v3
+########################################
+# BehaviorTreeは.CPPの最新版だけがbehaviortree_cpp_v3のCMakeが通る
+# find_package(behaviortree_cpp_v3 REQUIRED)
+# なぜか古くなるとbehaviortree_cpp_v3からBehaviorTreeV3に名前が変更され、ビルドも通らなくなる
+# 最新 git clone -b 3.7.0 https://github.com/BehaviorTree/BehaviorTree.CPP でOK 2022/05/31 commit id: a5411c978ec976f66d83b1df5aa4dd7c632a142c
+USER root
+RUN apt-get update \
+    && apt-get install -y \
+      libzmq3-dev \
+      libboost-dev \
+    && mkdir -p /github \
+    && cd /github \
+    && git clone -b 3.7.0 https://github.com/BehaviorTree/BehaviorTree.CPP \
+    && cd BehaviorTree.CPP \
+    && git checkout a5411c978ec976f66d83b1df5aa4dd7c632a142c \
+    && mkdir build \
+    && cd build \
+    && cmake .. \
+    && make \
+    && make install \
+    && apt autoremove -y \
+    && rm -rf /var/lib/apt/lists/*
+
+
+####################
+# ROS Keys
+####################
+RUN curl -s http://repo.ros2.org/repos.key | apt-key add - \
+    && curl -s https://packages.osrfoundation.org/gazebo.key | apt-key add -
+
+
+####################
+# add apt list
+####################
+RUN curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(lsb_release -cs) main" | tee /etc/apt/sources.list.d/ros2-latest.list > /dev/null
+
+
+####################
+# Packages
+####################
+RUN apt-get update \
+    && apt-get install -y \
+      build-essential \
+      libbullet-dev \
+      python3-flake8 \
+      python3-pytest \
+      python3-pytest-cov \
+      python3-rosdep \
+      python3-setuptools \
+      python3-catkin-pkg-modules \
+      python3-rospkg-modules \
+      python3-colcon-common-extensions \
+    ### Fast-RTS dependencies ### \
+    && apt-get install --no-install-recommends -y \
+      libasio-dev \
+      libtinyxml2-dev \
+    ### Cyclone DDS dependencies ### \
+    && apt-get install --no-install-recommends -y \
+      libcunit1-dev \
+    && apt autoremove -y \
+    && rm -rf /var/lib/apt/lists/*
+
+
+####################
+# some pip packages needed for testing
+####################
+# flake8 4.0.1 requires importlib-metadata<4.3; python_version < "3.8", but you have importlib-metadata 4.8.3 which is incompatible.
+# markdown 3.3.7 requires importlib-metadata>=4.4; python_version < "3.10", but you have importlib-metadata 4.2.0 which is incompatible.
+
+USER $USERNAME
+RUN . /virtualenv/$VENV/bin/activate \
+    && pip install -U \
+      argcomplete \
+      vcstool \
+      flake8-blind-except \
+      flake8-builtins \
+      flake8-class-newline \
+      flake8-comprehensions \
+      flake8-deprecated \
+      flake8-docstrings \
+      flake8-import-order \
+      flake8-quotes \
+      pytest-repeat \
+      pytest-rerunfailures \
+      pytest \
+      catkin_pkg \
+      empy \
+      lark \
+      markdown==3.3.4
+
+
+####################
+# ros2 humble gazebo, rviz, image_pipeline
+####################
+ENV ROS_DISTRO=humble
+ENV ROS_ROOT=/opt/ros/${ROS_DISTRO}
+
+USER $USERNAME
+RUN sudo mkdir -p /opt/ros/$ROS_DISTRO/ \
+    && sudo chown $USERNAME:$USERNAME /opt/ros/$ROS_DISTRO/
+
+RUN . /virtualenv/$VENV/bin/activate \
+    && mkdir -p /opt/ros/$ROS_DISTRO/src \
+    && cd /opt/ros/$ROS_DISTRO \
+    ### ros2 humble ### \
+    && wget https://raw.githubusercontent.com/ros2/ros2/$ROS_DISTRO/ros2.repos -O ros2.repos \
+    && vcs import src < ros2.repos \
+    ### gazebo ### \
+    && sudo sh -c 'echo "deb http://packages.osrfoundation.org/gazebo/ubuntu-stable `lsb_release -cs` main" > /etc/apt/sources.list.d/gazebo-stable.list' \
+    && curl -s https://packages.osrfoundation.org/gazebo.key | sudo apt-key add - \
+    && sudo apt-get update \
+    && sudo apt-get install -y gazebo11-common gazebo11 libgazebo11-dev \
+    #&& wget https://raw.githubusercontent.com/ros-simulation/gazebo_ros_pkgs/$ROS_DISTRO/gazebo_ros_pkgs.repos -O gazebo_ros_pkgs.repos \
+    && git clone -b galactic https://github.com/ros-simulation/gazebo_ros_pkgs \
+    && git clone -b ros2 https://github.com/ros-perception/vision_opencv \
+    ### /opt/ros/humble/src ### \
+    && cd /opt/ros/$ROS_DISTRO/src/ \
+    ### teleop_twist_joy ### \
+    && git clone -b $ROS_DISTRO https://github.com/ros2/teleop_twist_joy \
+    ### teleop_tools \
+    && git clone -b foxy-devel https://github.com/ros-teleop/teleop_tools \
+    ### ackermann_msgs ### \
+    && git clone -b ros2 https://github.com/ros-drivers/ackermann_msgs \
+    ### image_pipeline ### \
+    && git clone -b ros2 https://github.com/ros-perception/image_pipeline \
+    ### vision_msgs ### \
+    && git clone -b galactic https://github.com/ros-perception/vision_msgs \
+    ### Xacro ### \
+    && git clone -b dashing-devel https://github.com/ros/xacro/ \
+    ### VLP-16 ### \
+    && sudo apt-get install -y libpcap-dev libpcl-dev libyaml-cpp-dev \
+    && git clone -b galactic https://github.com/ros/diagnostics \
+    && git clone -b ros2 https://github.com/ros/angles \
+    && git clone -b ros2 https://github.com/ros-drivers/velodyne \
+    ### ros-planning navigation2 ### \
+    && git clone -b ros2 https://github.com/ros/bond_core \
+    && git clone -b ${ROS_DISTRO} https://github.com/ros-planning/navigation2 \
+    ### turtlebot3 ### \
+    && git clone -b ${ROS_DISTRO}-devel https://github.com/ROBOTIS-GIT/DynamixelSDK \
+    && git clone -b ${ROS_DISTRO}-devel https://github.com/ROBOTIS-GIT/turtlebot3_msgs \
+    && git clone -b ${ROS_DISTRO}-devel https://github.com/ROBOTIS-GIT/turtlebot3 \
+    && git clone -b ${ROS_DISTRO}-devel https://github.com/ROBOTIS-GIT/hls_lfcd_lds_driver \
+    ### pcl_conversions ### \
+    && git clone -b ros2 https://github.com/ros-perception/pcl_msgs \
+    && git clone -b galactic https://github.com/ros-perception/perception_pcl \
+    ### ros_canopen ### \
+    && cd /opt/ros/$ROS_DISTRO/src \
+    && git clone -b dashing https://github.com/ros-industrial/ros_canopen \
+    && sudo apt autoremove -y \
+    && sudo rm -rf /var/lib/apt/lists/*
+
+
+########################################
+# ompl
+########################################
+# requirement: boost
+#--- stderr: smac_planner
+#
+#CMake Error at CMakeLists.txt:25 (find_package):
+#  By not providing "Findompl.cmake" in CMAKE_MODULE_PATH this project has
+#  asked CMake to find a package configuration file provided by "ompl", but
+#  CMake did not find one.
+#
+#  Could not find a package configuration file provided by "ompl" with any of
+#  the following names:
+#
+#    omplConfig.cmake
+#    ompl-config.cmake
+#
+#  Add the installation prefix of "ompl" to CMAKE_PREFIX_PATH or set
+#  "ompl_DIR" to a directory containing one of the above files.  If "ompl"
+#  provides a separate development package or SDK, be sure it has been
+#  installed.
+RUN cd ~/github \
+    && git clone https://github.com/ompl/ompl \
+    && cd ompl \
+    && mkdir -p build/Release \
+    && cd build/Release \
+    && cmake ../.. \
+    && make -j$(nproc) \
+    && sudo make install
+
+
+########################################
+# PCL 1.12.1 インストール
+########################################
+# requirement: boost
+# cartographer_ros cannot use pcl 1.12.1
+RUN sudo apt-get update \
+    && sudo apt-get install -y \
+      libflann-dev \
+      freeglut3-dev \
+    && sudo apt autoremove -y \
+    && sudo rm -rf /var/lib/apt/lists/*
+
+RUN cd ~/github \
+    && git clone https://github.com/PointCloudLibrary/pcl \
+    && cd pcl \
+    && git checkout pcl-1.12.1 \
+    && mkdir build \
+    && cd build \
+    && cmake .. \
+    && make -j$(nproc) \
+    && sudo make install
+
+
+########################################
+# rosdep dependency install
+########################################
+RUN sudo apt-get update \
+    ### source update ### \
+    && sudo rosdep init \
+    && rosdep update \
+    && cd /opt/ros/$ROS_DISTRO/ \
+    && rosdep install --from-paths src --ignore-src -r -y --rosdistro $ROS_DISTRO \
+    && sudo apt autoremove -y \
+    && sudo rm -rf /var/lib/apt/lists/*
+
+####################
+# gazebo_ros src fix
+####################
+#RUN cd /opt/ros/foxy/src/image_common/ \
+#    && git checkout foxy \
+#    && sed -i 's/set(CMAKE_CXX_FLAGS "\${CMAKE_CXX_FLAGS} \${GAZEBO_CXX_FLAGS}")/set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")/g' /opt/ros/foxy/src/gazebo_ros_pkgs/gazebo_dev/cmake/gazebo_dev-extras.cmake
+
+
+####################
+# python_orocos_kdl_vendor src fix
+####################
+RUN cd /opt/ros/$ROS_DISTRO/src/ros2/orocos_kdl_vendor \
+    && git rev-parse --abbrev-ref HEAD \
+    && git fetch origin pull/9/head:issues_9 \
+    && git checkout issues_9 \
+    && git rev-parse --abbrev-ref HEAD
+
+
+####################
+# apt package nlohmann-json-dev bug fix
+####################
+# /opt/ros/humble/src/navigation2/nav2_smac_planner/include/nav2_smac_planner/utils.hpp: In function ‘void nav2_smac_planner::fromJsonToMetaData(const json&, nav2_smac_planner::LatticeMetadata&)’:
+# /opt/ros/humble/src/navigation2/nav2_smac_planner/include/nav2_smac_planner/utils.hpp:113:29: error: ‘const value_type’ {aka ‘const class nlohmann::basic_json<>’} has no member named ‘get_to’; did you mean ‘get_ptr’?
+#    json.at("turning_radius").get_to(lattice_metadata.min_turning_radius);
+#
+# https://github.com/nlohmann/json/issues/1648#issuecomment-504539463
+# apt list --installed | grep json
+# nlohmann-json-dev/now 2.1.1-1.1 all [installed,local]
+# This is nlohmann-jeson-dev bug. Ubuntu 18.04 nlohmann-jeson-dev version 2.1.1 released in 2018.
+# bugfix is 2019.
+RUN cd ~/github \
+    && git clone -b v3.10.5 https://github.com/nlohmann/json \
+    && cd json \
+    && mkdir build \
+    && cd build \
+    && cmake .. \
+    && cmake --build . \
+    && sudo make install
+
+
+####################
+# diagnostics/self_test build skip
+####################
+# https://github.com/ros/diagnostics/issues/206
+# https://github.com/ros/rosdistro/pull/30890
+# diagnosticsによって追加されるself_testは現在ビルドができないため、ビルドから外します。将来再び追加されることがあります。
+RUN touch /opt/ros/$ROS_DISTRO/src/diagnostics/self_test/COLCON_IGNORE
+
+####################
+# ros build
+####################
+RUN . /virtualenv/$VENV/bin/activate \
+    && cd /opt/ros/$ROS_DISTRO \
+    ### build ### \
+    && export pybind11_DIR=/virtualenv/$VENV/lib/python3.6/site-packages/pybind11/share/cmake/pybind11 \
+    && export PYTHONPATH=/usr/lib/python3/dist-packages \
+    && colcon build --symlink-install --cmake-force-configure --cmake-clean-cache
+
+# 途中から再開するときも
+# export pybind11_DIR=/virtualenv/python3/lib/python3.6/site-packages/pybind11/share/cmake/pybind11
+# export PYTHONPATH=/usr/lib/python3/dist-packages
+# colcon build --symlink-install --cmake-force-configure --cmake-clean-cache
+
+
+########################################
+# https://github.com/ros2/orocos_kdl_vendor/pull/9
+# ---
+# Finished <<< test_launch_testing [45.9s]
+# Starting >>> python_orocos_kdl_vendor
+# --- stderr: python_orocos_kdl_vendor                                                                                          
+# /opt/ros/humble/build/python_orocos_kdl_vendor/_deps/python_orocos_kdl-src/python_orocos_kdl/PyKDL/PyKDL.cpp:32:16: error: expected constructor, destructor, or type conversion before ‘(’ token
+#  PYBIND11_MODULE(PyKDL, m)
+#                 ^
+# make[2]: *** [_deps/python_orocos_kdl-build/CMakeFiles/PyKDL.dir/PyKDL/PyKDL.cpp.o] Error 1
+# make[1]: *** [_deps/python_orocos_kdl-build/CMakeFiles/PyKDL.dir/all] Error 2
+# make: *** [all] Error 2
+# ---
+#
+# まだMergeされていないpull requestを適用する
+### python_orocos_kdl_vendor pybind11 CMake error patch ###
+# cd /opt/ros/humble/src/ros2/orocos_kdl_vendor
+# git rev-parse --abbrev-ref HEAD 
+# git fetch origin pull/9/head:issues_9
+# git checkout issues_9 
+# git rev-parse --abbrev-ref HEAD
+# cd /opt/ros/humble
+# colcon build --symlink-install --cmake-force-configure --cmake-clean-cache --packages-select python_orocos_kdl_vendor
+# しかしエラー
+# /opt/ros/humble/build/python_orocos_kdl_vendor/_deps/python_orocos_kdl-src/python_orocos_kdl/PyKDL/framevel.cpp
+# error: ‘pickle’ is not a member of ‘py’
+# namespace py = pybind11;
+# py::pickle(); このpickleが無いということ
+# 人力ビルド時にexport pybind11_DIR=/virtualenv/$VENV/lib/python3.6/site-packages/pybind11/share/cmake/pybind11 の$VENVが空だったことが原因だった
+
+
+########################################
+# ModuleNotFoundError: No module named 'sipconfig'
+########################################
+# export PYTHONPATH=/usr/lib/python3/dist-packages
+# python -c "import sipconfig; print(sipconfig.Configuration().sip_bin)"
+# We don't need qt_gui_cpp for ros build.
+# https://github.com/ros2/ros2/issues/1139
+# https://github.com/ros-visualization/python_qt_binding/issues/103
+# colcon build --symlink-install --cmake-force-configure --cmake-clean-cache --packages-skip-by-dep python_qt_binding --packages-ignore qt_gui_cpp rqt_gui_cpp
+
+########################################
+# build single package
+########################################
+#cd /opt/ros/foxy
+#colcon build --symlink-install --cmake-force-configure --cmake-clean-cache --packages-select qt_gui_cpp
+#colcon build --symlink-install --cmake-force-configure --cmake-clean-cache --packages-select pcl_conversions
+
+
+####################
+# nav2_util
+####################
+# cd /opt/ros/humble
+# export pybind11_DIR=/virtualenv/python3/lib/python3.6/site-packages/pybind11/share/cmake/pybind11
+# export PYTHONPATH=/usr/lib/python3/dist-packages
+# colcon build --symlink-install --cmake-force-configure --cmake-clean-cache --packages-select nav2_util
+
+# https://answers.ros.org/question/367929/compilation-error-master-branch-navigation2/
+# /opt/ros/humble/src/navigation2/nav2_util/include/nav2_util/lifecycle_node.hpp:25:10: fatal error: bondcpp/bond.hpp: No such file or directory
+# You must work with ROS2 master or rolling to use Nav2 main branch. Sometimes it will be compatible with released distributions, but rclcpp has changed too much from Foxy to support it on our master branch anymore.
+# git clone -b ros2 https://github.com/ros/bond_core
+# colcon build --symlink-install --cmake-force-configure --cmake-clean-cache --packages-select nav2_util bond bond_core bondcpp smclib test_bond
+
+
+####################
+# nav2_smac_planner
+####################
+# /opt/ros/humble/src/navigation2/nav2_smac_planner/include/nav2_smac_planner/utils.hpp: In function ‘void nav2_smac_planner::fromJsonToMetaData(const json&, nav2_smac_planner::LatticeMetadata&)’:
+# /opt/ros/humble/src/navigation2/nav2_smac_planner/include/nav2_smac_planner/utils.hpp:113:29: error: ‘const value_type’ {aka ‘const class nlohmann::basic_json<>’} has no member named ‘get_to’; did you mean ‘get_ptr’?
+#    json.at("turning_radius").get_to(lattice_metadata.min_turning_radius);
+#
+# https://github.com/nlohmann/json/issues/1648#issuecomment-504539463
+# apt list --installed | grep json
+# nlohmann-json-dev/now 2.1.1-1.1 all [installed,local]
+# This is nlohmann-jeson-dev bug. 2.1.1は5年前2018年
+# bugfixは2019年
+# cd ~/github
+# git clone -b v3.10.5 https://github.com/nlohmann/json
+# cd json
+# mkdir build
+# cd build
+# cmake .. 
+# cmake --build .
+# sudo make install
+
+
+####################
+# navigation2
+####################
+# /opt/ros/humble/src/navigation2/nav2_waypoint_follower/include/nav2_waypoint_follower/plugins/photo_at_waypoint.hpp:35:10: fatal error: opencv4/opencv2/core.hpp: No such file or directory
+
+
+####################
+# self_test
+####################
+# --- stderr: self_test                              
+# /opt/ros/humble/src/diagnostics/self_test/src/run_selftest.cpp: In member function ‘rclcpp::Client<diagnostic_msgs::srv::SelfTest>::SharedFuture ClientNode::queue_async_request()’:
+# /opt/ros/humble/src/diagnostics/self_test/src/run_selftest.cpp:94:75: error: conversion from ‘rclcpp::Client<diagnostic_msgs::srv::SelfTest>::SharedFutureAndRequestId’ to ‘rclcpp::Client<diagnostic_msgs::srv::SelfTest>::SharedFuture’ {aka ‘std::shared_future<std::shared_ptr<diagnostic_msgs::srv::SelfTest_Response_<std::allocator<void> > > >’} is ambiguous
+#      return client_->async_send_request(request, response_received_callback);
+
+# https://github.com/ros/diagnostics/issues/206
+# https://github.com/ros/rosdistro/pull/30890
+# diagnosticsによって追加されるself_testは現在ビルドができないため、ビルドから外します。将来再び追加されることがあります。
+
+
+########################################
+# Cartographer-ROS
+########################################
+USER $USERNAME
+RUN sudo apt-get update \
+    && sudo apt-get install -y \
+      libgoogle-glog-dev \
+      libgflags-dev \
+      libatlas-base-dev \
+      libeigen3-dev \
+      libsuitesparse-dev \
+      liblua5.2-dev \
+      stow \
+    && sudo apt autoremove -y \
+    && sudo rm -rf /var/lib/apt/lists/*
+
+# humbleはcartographer_ros 2.0.900xを使うことからCeres 2.0.0を使う
+RUN cd ~/github \
+    && git clone -b 2.0.0 https://ceres-solver.googlesource.com/ceres-solver \
+    && cd ceres-solver \
+    && mkdir build \
+    && cd build \
+    && cmake .. \
+    && make -j$(nproc) \
+    && sudo make install
+
+# cartographer 2.0.0を使う
+RUN cd ~/github \
+    && git clone -b 2.0.0 https://github.com/cartographer-project/cartographer \
+    # https://github.com/cartographer-project/cartographer/issues/1611#issuecomment-560236725
+    && sed -i 's/if(NOT GMock_FOUND)/if(NOT GMock_FOUND)\n  find_library(GTEST_LIBRARIES NAMES gtest PATH_SUFFIXES lib)\n  find_library(GMOCK_A_LIBRARIES NAMES gmock PATH_SUFFIXES lib)/g' cartographer/cmake/modules/FindGMock.cmake \
+    && sed -i 's/list(APPEND GMOCK_LIBRARIES \${CMAKE_THREAD_LIBS_INIT})/list(APPEND GMOCK_LIBRARIES ${GMOCK_A_LIBRARIES} ${GTEST_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})/g' cartographer/cmake/modules/FindGMock.cmake \
+    # https://github.com/cartographer-project/cartographer/issues/1611#issuecomment-801093258
+    && sed -i 's/\${GMOCK_LIBRARY}/${GMOCK_LIBRARIES}/g' cartographer/CMakeLists.txt \
+    && chmod +x cartographer/scripts/install_abseil.sh \
+    && cd cartographer/scripts \
+    && ./install_abseil.sh \
+    && cd .. \
+    && mkdir build \
+    && cd build \
+    && cmake .. \
+    && make -j$(nproc) \
+    && sudo make install
+
+# cartographer_rvizはCOLCON_IGNORE（空ファイル）が置いてあるためビルドから除外される
+RUN . /virtualenv/$VENV/bin/activate \
+    && cd /opt/ros/$ROS_DISTRO/src \
+    && git clone -b 2.0.9000 https://github.com/ros2/cartographer_ros \
+    && cd /opt/ros/$ROS_DISTRO \
+    && sed -i 's/set(CMAKE_CXX_STANDARD 14)/set(CMAKE_CXX_STANDARD 17)/g' src/cartographer_ros/cartographer_ros/CMakeLists.txt \
+    && CPATH=/opt/ros/$ROS_DISTRO/install/rmw/include \
+      colcon build --symlink-install --cmake-force-configure --cmake-clean-cache --packages-select \
+      cartographer_ros_msgs \
+      cartographer_ros
+
+
+####################
+# setup.bash
+####################
+USER root
+RUN echo "export ROS_ROOT=$ROS_ROOT" >> /root/.bashrc \
+    && echo 'source ${ROS_ROOT}/install/setup.bash' >> /root/.bashrc \
+    && echo "export PYTHONPATH=/virtualenv/$VENV/lib/python3.6/site-packages" >> /home/$USERNAME/.bashrc \
+    && echo "export ROS_ROOT=$ROS_ROOT" >> /home/$USERNAME/.bashrc \
+    && echo 'source ${ROS_ROOT}/install/setup.bash' >> /home/$USERNAME/.bashrc
+USER $USERNAME
+
+
+# -DQt5_DIR=/usr/local/opt/qt5/lib/cmake/Qt5

@@ -1,0 +1,1179 @@
+########################################
+# Docker build
+########################################
+#time sudo docker build -t naisy/jetson-jp461-deepstream601-triton-base -f Dockerfile.jetson-jp461-deepstream601-triton-base .
+
+
+########################################
+# Storage setting
+########################################
+#sudo service docker stop
+#cd /var/run
+#sudo mv docker /mnt/ssd250
+#sudo ln -s /mnt/ssd250 docker
+#sudo service docker start
+
+# https://github.com/NVIDIA/nvidia-docker/issues/1033
+# cmake fails unable to find cuda library while building an image
+#vi /etc/docker/daemon.json
+#{
+#    "runtimes": {
+#        "nvidia": {
+#            "path": "/usr/bin/nvidia-container-runtime",
+#            "runtimeArgs": []
+#        }
+#    },
+#    "default-runtime": "nvidia"
+#}
+#
+#service docker stop
+#service docker start
+
+
+# end of information
+
+
+########################################
+# Base OS repogitory
+########################################
+# ex. https://github.com/NVIDIA-AI-IOT/ros2_jetson/blob/main/docker/DockerFile.l4tbase.ros2.foxy
+# DeepStream-l4t tags: https://catalog.ngc.nvidia.com/orgs/nvidia/containers/deepstream-l4t/tags
+
+# JetPack 4.6.1
+# ARG BASE_IMAGE=nvcr.io/nvidia/deepstream-l4t:6.0.1-triton
+# JetPack 4.6
+# ARG BASE_IMAGE=nvcr.io/nvidia/deepstream-l4t:6.0-samples
+# JetPack 4.4
+# ARG BASE_IMAGE=nvcr.io/nvidia/deepstream-l4t:5.0-20.07-samples
+# JetPack 4.4.1
+# ARG BASE_IMAGE=nvcr.io/nvidia/deepstream-l4t:5.0.1-20.09-samples
+
+ARG BASE_IMAGE=nvcr.io/nvidia/deepstream-l4t:6.0.1-triton
+FROM ${BASE_IMAGE}
+
+########################################
+# ENV
+########################################
+#ARG ROS_PKG=ros_base
+ENV ROS_DISTRO=foxy
+ENV ROS_ROOT=/opt/ros/${ROS_DISTRO}
+
+ENV DEBIAN_FRONTEND=noninteractive
+#ARG OPENBLAS_CORETYPE=ARMV8
+#ARG LD_PRELOAD=/usr/lib/aarch64-linux-gnu/libgomp.so.1
+
+########################################
+# change the locale from POSIX to UTF-8
+########################################
+RUN locale-gen en_US en_US.UTF-8 && update-locale LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8
+ENV LANG=en_US.UTF-8
+
+########################################
+# apt fix
+########################################
+# Because sometime the repository is 404, use with --fix-missing option.
+RUN rm -rf /var/lib/apt/lists/* \
+    && apt-get --fix-missing update \
+    && apt-get install -y apt-utils \
+    && apt autoremove -y \
+    && rm -rf /var/lib/apt/lists/*
+
+
+########################################
+# change group ids
+########################################
+# deepstream-l4t:6.0.1-triton
+# Add gpio group debug
+# change syslog id: from 104 to 114
+# change rdma id:   from 105 to 129
+# change input id:  from 101 to 104
+# change netdev id: from 102 to 106
+# change i2c id:    from 103 to 108
+# ls -l /dev/
+# cat /etc/group
+RUN groupadd -f -r gpio \
+    && groupmod -g 114 syslog \
+    && groupmod -g 129 rdma \
+    && groupmod -g 104 input \
+    && groupmod -g 106 netdev \
+    && groupmod -g 108 i2c \
+    && groupadd -f -r colord \
+    && groupmod -g 122 colord \
+    && groupadd -f -r debug \
+    && groupmod -g 995 debug \
+    && groupadd -f -r weston-launch \
+    && groupmod -g 996 weston-launch \
+    && groupadd -f -r crypto \
+    && groupmod -g 997 crypto \
+    && groupadd -f -r trusty \
+    && groupmod -g 998 trusty
+
+
+########################################
+# XAuthority
+########################################
+RUN apt-get update \
+    && apt-get install -y \
+      sudo \
+      xauth \
+      xterm \
+    && apt autoremove -y \
+    && rm -rf /var/lib/apt/lists/*
+#Add new sudo user
+ARG USERNAME=jetson
+RUN useradd -m $USERNAME && \
+        echo "$USERNAME:$USERNAME" | chpasswd && \
+        usermod --shell /bin/bash $USERNAME && \
+        usermod -aG sudo,adm,cdrom,audio,dip,video,plugdev,i2c,gpio,dialout $USERNAME && \
+        echo "$USERNAME ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers.d/$USERNAME && \
+        chmod 0440 /etc/sudoers.d/$USERNAME && \
+        # Replace 1000 with your user/group id
+        usermod  --uid 1000 $USERNAME && \
+        groupmod --gid 1000 $USERNAME
+
+
+########################################
+# bash setting
+########################################
+# sed
+# escape characters \'$.*/[]^
+# 1. Write the regex between single quotes.
+# 2. \ -> \\
+# 3. ' -> '\''
+# 4. Put a backslash before $.*/[]^ and only those characters.
+
+
+####################
+# USER
+####################
+# before
+# #force_color_prompt=yes
+# after
+# force_color_prompt=yes
+
+# deepstream-l4t:6.0.1-triton
+# before
+#    PS1='${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
+# after
+#    PS1='${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\[\033[01;31m\]docker-\h\[\033[00m\]:\[\033[01;35m\]\w\[\033[00m\]\$ '
+
+# before
+# alias ls='ls --color=auto'
+# after
+# alias ls='ls -asiF --color=auto'
+
+RUN sed -i 's/#force_color_prompt=yes/force_color_prompt=yes/g' /home/$USERNAME/.bashrc \
+&& sed -i 's/PS1='\''\${debian_chroot:+(\$debian_chroot)}\\\[\\033\[01;32m\\\]\\u@\\h\\\[\\033\[00m\\\]:\\\[\\033\[01;34m\\\]\\w\\\[\\033\[00m\\\]\\\$ '\''/PS1='\''\${debian_chroot:+(\$debian_chroot)}\\\[\\033\[01;32m\\\]\\u@\\\[\\033\[01;31m\\\]docker-\\h\\\[\\033\[00m\\\]:\\\[\\033\[01;35m\\\]\\w\\\[\\033\[00m\\\]\\\$ '\''/g' /home/$USERNAME/.bashrc \
+&& sed -i 's/alias ls='\''ls --color=auto'\''/alias ls='\''ls -asiF --color=auto'\''/g' /home/$USERNAME/.bashrc \
+&& echo 'alias xterm='"'"'xterm -fa '"'"'Monospace'"'"' -fs 10 -fg white -bg black'"'"'\n' >> /home/$USERNAME/.bashrc \
+&& echo 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda-10.2/lib64:/usr/local/cuda-10.2/targets/aarch64-linux/lib:/usr/local/lib' >> /home/$USERNAME/.bashrc \
+&& echo 'export LANG=en_US.UTF-8' >> /home/$USERNAME/.bashrc \
+&& echo 'export NO_AT_BRIDGE=1' >> /home/$USERNAME/.bashrc \
+&& echo 'export PATH=$PATH:/usr/src/tensorrt/bin' >> /home/$USERNAME/.bashrc \
+&& echo 'cd' >> /home/$USERNAME/.bashrc \
+&& echo "complete -d cd" >> /home/$USERNAME/.bashrc
+
+
+####################
+# ROOT
+####################
+# before
+#    xterm-color) color_prompt=yes;;
+# after
+#    xterm-color|*-256color) color_prompt=yes;;
+
+# before
+#    PS1='${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
+# after
+#    PS1='${debian_chroot:+($debian_chroot)}\[\033[01;37m\]\u@\[\033[01;31m\]docker-\h\[\033[00m\]:\[\033[01;35m\]\w\[\033[00m\]\$ '
+
+# before
+# alias ls='ls --color=auto'
+# after
+# alias ls='ls -asiF --color=auto'
+
+RUN sed -i 's/xterm-color) color_prompt=yes;;/xterm-color|\*-256color) color_prompt=yes;;/g' /root/.bashrc \
+&& sed -i 's/#force_color_prompt=yes/force_color_prompt=yes/g' /root/.bashrc \
+&& sed -i 's/PS1='\''\${debian_chroot:+(\$debian_chroot)}\\\[\\033\[01;32m\\\]\\u@\\h\\\[\\033\[00m\\\]:\\\[\\033\[01;34m\\\]\\w\\\[\\033\[00m\\\]\\\$ '\''/PS1='\''\${debian_chroot:+(\$debian_chroot)}\\\[\\033\[01;37m\\\]\\u@\\\[\\033\[01;31m\\\]docker-\\h\\\[\\033\[00m\\\]:\\\[\\033\[01;35m\\\]\\w\\\[\\033\[00m\\\]\\\$ '\''/g' /root/.bashrc \
+&& sed -i 's/alias ls='\''ls --color=auto'\''/alias ls='\''ls -asiF --color=auto'\''/g' /root/.bashrc \
+&& echo 'alias xterm='"'"'xterm -fa '"'"'Monospace'"'"' -fs 10 -fg white -bg black'"'"'\n' >> /root/.bashrc \
+&& echo 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda-10.2/lib64:/usr/local/cuda-10.2/targets/aarch64-linux/lib:/usr/local/lib' >> /root/.bashrc \
+&& echo 'export LANG=en_US.UTF-8' >> /root/.bashrc \
+&& echo 'export NO_AT_BRIDGE=1' >> /root/.bashrc \
+&& echo 'export PATH=$PATH:/usr/src/tensorrt/bin' >> /root/.bashrc \
+&& echo "complete -d cd" >> /root/.bashrc
+
+
+#########################################
+# .dircolors
+########################################
+# end of line: \n\
+# ': '"'"'
+
+RUN echo '# dircolors -p > ~/.dircolors\n\
+# vi ~/.dircolors\n\
+# man dircolors\n\
+\n\
+# Configuration file for dircolors, a utility to help you set the\n\
+# LS_COLORS environment variable used by GNU ls with the --color option.\n\
+# Copyright (C) 1996-2016 Free Software Foundation, Inc.\n\
+# Copying and distribution of this file, with or without modification,\n\
+# are permitted provided the copyright notice and this notice are preserved.\n\
+# The keywords COLOR, OPTIONS, and EIGHTBIT (honored by the\n\
+# slackware version of dircolors) are recognized but ignored.\n\
+# Below are TERM entries, which can be a glob patterns, to match\n\
+# against the TERM environment variable to determine if it is colorizable.\n\
+TERM Eterm\n\
+TERM ansi\n\
+TERM color-xterm\n\
+TERM con[0-9]*x[0-9]*\n\
+TERM cons25\n\
+TERM console\n\
+TERM cygwin\n\
+TERM dtterm\n\
+TERM eterm-color\n\
+TERM gnome\n\
+TERM gnome-256color\n\
+TERM hurd\n\
+TERM jfbterm\n\
+TERM konsole\n\
+TERM kterm\n\
+TERM linux\n\
+TERM linux-c\n\
+TERM mach-color\n\
+TERM mach-gnu-color\n\
+TERM mlterm\n\
+TERM putty\n\
+TERM putty-256color\n\
+TERM rxvt*\n\
+TERM screen*\n\
+TERM st\n\
+TERM st-256color\n\
+TERM terminator\n\
+TERM tmux*\n\
+TERM vt100\n\
+TERM xterm*\n\
+# Below are the color init strings for the basic file types. A color init\n\
+# string consists of one or more of the following numeric codes:\n\
+# Attribute codes:\n\
+# 00=none 01=bold 04=underscore 05=blink 07=reverse 08=concealed\n\
+# Text color codes:\n\
+# 30=black 31=red 32=green 33=yellow 34=blue 35=magenta 36=cyan 37=white\n\
+# Background color codes:\n\
+# 40=black 41=red 42=green 43=yellow 44=blue 45=magenta 46=cyan 47=white\n\
+#NORMAL 00 # no color code at all\n\
+#FILE 00 # regular file: use no color at all\n\
+RESET 0 # reset to "normal" color\n\
+DIR 01;35 # directory\n\
+LINK 01;36 # symbolic link. (If you set this to '"'"'target'"'"' instead of a\n\
+ # numerical value, the color is as for the file pointed to.)\n\
+MULTIHARDLINK 00 # regular file with more than one link\n\
+FIFO 40;99 # pipe\n\
+SOCK 01;32 # socket\n\
+DOOR 01;32 # door\n\
+BLK 40;99;01 # block device driver\n\
+CHR 40;99;01 # character device driver\n\
+ORPHAN 40;31;01 # symlink to nonexistent file, or non-stat'"'"'able file ...\n\
+MISSING 00 # ... and the files they point to\n\
+SETUID 37;41 # file that is setuid (u+s)\n\
+SETGID 30;43 # file that is setgid (g+s)\n\
+CAPABILITY 30;41 # file with capability\n\
+STICKY_OTHER_WRITABLE 30;42 # dir that is sticky and other-writable (+t,o+w)\n\
+OTHER_WRITABLE 35;42 # dir that is other-writable (o+w) and not sticky\n\
+STICKY 37;44 # dir with the sticky bit set (+t) and not other-writable\n\
+# This is for files with execute permission:\n\
+EXEC 01;31\n\
+# List any file extensions like '"'"'.gz'"'"' or '"'"'.tar'"'"' that you would like ls\n\
+# to colorize below. Put the extension, a space, and the color init string.\n\
+# (and any comments you want to add after a '"'"'#'"'"')\n\
+# If you use DOS-style suffixes, you may want to uncomment the following:\n\
+#.cmd 01;31 # executables (bright green)\n\
+#.exe 01;31\n\
+#.com 01;31\n\
+#.btm 01;31\n\
+#.bat 01;31\n\
+# Or if you want to colorize scripts even if they do not have the\n\
+# executable bit actually set.\n\
+#.sh 01;31\n\
+#.csh 01;31\n\
+ # archives or compressed (bright red)\n\
+.tar 01;33\n\
+.tgz 01;33\n\
+.arc 01;33\n\
+.arj 01;33\n\
+.taz 01;33\n\
+.lha 01;33\n\
+.lz4 01;33\n\
+.lzh 01;33\n\
+.lzma 01;33\n\
+.tlz 01;33\n\
+.txz 01;33\n\
+.tzo 01;33\n\
+.t7z 01;33\n\
+.zip 01;33\n\
+.z 01;33\n\
+.Z 01;33\n\
+.dz 01;33\n\
+.gz 01;33\n\
+.lrz 01;33\n\
+.lz 01;33\n\
+.lzo 01;33\n\
+.xz 01;33\n\
+.bz2 01;33\n\
+.bz 01;33\n\
+.tbz 01;33\n\
+.tbz2 01;33\n\
+.tz 01;33\n\
+.deb 01;33\n\
+.rpm 01;33\n\
+.jar 01;33\n\
+.war 01;33\n\
+.ear 01;33\n\
+.sar 01;33\n\
+.rar 01;33\n\
+.alz 01;33\n\
+.ace 01;33\n\
+.zoo 01;33\n\
+.cpio 01;33\n\
+.7z 01;33\n\
+.rz 01;33\n\
+.cab 01;33\n\
+# image formats\n\
+.jpg 01;32\n\
+.jpeg 01;32\n\
+.gif 01;32\n\
+.bmp 01;32\n\
+.pbm 01;32\n\
+.pgm 01;32\n\
+.ppm 01;32\n\
+.tga 01;32\n\
+.xbm 01;32\n\
+.xpm 01;32\n\
+.tif 01;32\n\
+.tiff 01;32\n\
+.png 01;32\n\
+.svg 01;32\n\
+.svgz 01;32\n\
+.mng 01;32\n\
+.pcx 01;32\n\
+.mov 01;32\n\
+.mpg 01;32\n\
+.mpeg 01;32\n\
+.m2v 01;32\n\
+.mkv 01;32\n\
+.webm 01;32\n\
+.ogm 01;32\n\
+.mp4 01;32\n\
+.m4v 01;32\n\
+.mp4v 01;32\n\
+.vob 01;32\n\
+.qt 01;32\n\
+.nuv 01;32\n\
+.wmv 01;32\n\
+.asf 01;32\n\
+.rm 01;32\n\
+.rmvb 01;32\n\
+.flc 01;32\n\
+.avi 01;32\n\
+.fli 01;32\n\
+.flv 01;32\n\
+.gl 01;32\n\
+.dl 01;32\n\
+.xcf 01;32\n\
+.xwd 01;32\n\
+.yuv 01;32\n\
+.cgm 01;32\n\
+.emf 01;32\n\
+# http://wiki.xiph.org/index.php/MIME_Types_and_File_Extensions\n\
+.axv 01;32\n\
+.anx 01;32\n\
+.ogv 01;32\n\
+.ogx 01;32\n\
+# audio formats\n\
+.aac 00;36\n\
+.au 00;36\n\
+.flac 00;36\n\
+.m4a 00;36\n\
+.mid 00;36\n\
+.midi 00;36\n\
+.mka 00;36\n\
+.mp3 00;36\n\
+.mpc 00;36\n\
+.ogg 00;36\n\
+.ra 00;36\n\
+.wav 00;36\n\
+# http://wiki.xiph.org/index.php/MIME_Types_and_File_Extensions\n\
+.axa 00;36\n\
+.oga 00;36\n\
+.opus 00;36\n\
+.spx 00;36\n\
+.xspf 00;36\n'\
+> /root/.dircolors && cp /root/.dircolors /home/$USERNAME/.dircolors && chown $USERNAME:$USERNAME /home/$USERNAME/.dircolors
+
+
+########################################
+# fix ldconfig path
+########################################
+RUN echo '/usr/local/cuda-10.2/targets/aarch64-linux/lib' > /etc/ld.so.conf.d/nvidia.conf \
+    && echo '/etc/ld.so.conf.d/aarch64-linux-gnu.conf\n\
+# Multiarch support\n\
+/lib/aarch64-linux-gnu\n\
+/usr/lib/aarch64-linux-gnu\n'\
+> /etc/ld.so.conf.d/aarch64-linux-gnu.conf \
+  ldconfig
+
+
+########################################
+# Default Command
+########################################
+#CMD bash -c "/usr/bin/xterm -fa 'Monospace' -fs 10"
+CMD bash -c "/bin/bash"
+
+
+### END GUI ###
+
+########################################
+# Packages
+########################################
+RUN apt-get update \
+    && apt-get install -y \
+      vim \
+      less \
+      htop \
+      unzip \
+      locate \
+      git \
+      curl \
+      wget \
+      arp-scan \
+      v4l-utils \
+      gnupg2 \
+      lsb-release \
+      net-tools \
+      colortest \
+      ssh \
+      iputils-ping \
+    && apt autoremove -y \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN apt-get update \
+    && apt-get install -y \
+      dialog \
+      libhdf5-serial-dev \
+      hdf5-tools \
+      libhdf5-dev \
+      zlib1g-dev \
+      zip \
+      libjpeg8-dev \
+      liblapack-dev \
+      libblas-dev \
+      libgeos-dev \
+      gfortran \
+      python3-dev \
+      python3-pip \
+      python3-tk \
+      python3-gi \
+      python3-gst-1.0 \
+      libxslt1-dev \
+      libxml2-dev \
+      libffi-dev \
+      libcurl4-openssl-dev \
+      libssl-dev \
+      libpng-dev \
+      libopenblas-dev \
+      openmpi-doc \
+      openmpi-bin \
+      libopenmpi-dev \
+      libjpeg-dev \
+      libpython3-dev \
+      libavcodec-dev \
+      libavformat-dev \
+      libswscale-dev \
+      pkg-config \
+      gcc-8 \
+      g++-8 \
+      libprotobuf-dev \
+      protobuf-compiler \
+      ninja-build \
+      libgirepository1.0-dev \
+      libcairo2-dev \
+      mediainfo \
+      ssh \
+    && apt autoremove -y \
+    && rm -rf /var/lib/apt/lists/*
+
+
+# set default gcc version to 8
+RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-7 7 \
+    && update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-7 7 \
+    && update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-8 8 \
+    && update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-8 8 \
+    && update-alternatives --set gcc /usr/bin/gcc-8 \
+    && update-alternatives --set g++ /usr/bin/g++-8
+
+
+########################################
+# ~/.vimrc
+########################################
+USER $USERNAME
+RUN echo 'syntax enable\n\
+set background=dark'\
+>  ~/.vimrc
+USER root
+RUN echo 'syntax enable\n\
+set background=dark'\
+>  ~/.vimrc
+
+########################################
+# install NVIDIA L4T OpenCV (with GStreamer support)
+########################################
+# ROS2 humble navigation2/nav2_waypoint_follower build from source requires /usr/include/opencv4/opencv2/core.hpp
+# 
+# JetPack 4.6.1
+# deb https://repo.download.nvidia.com/jetson/common r32.7 main
+
+# Installable packages
+# mv /etc/apt/sources.list /
+# apt-get update
+# apt list | grep -v installed
+
+# nvcr.io/nvidia/deepstream-l4t:6.0.1-triton
+# にはopencv3.2がインストールされている。
+# これはubuntu標準のopencvで、これは使わない。
+# 問題は、humbleビルド中のnavigation2/nav2_waypoint_followerでopencv4/opencv2/core.hppを要求するが、これがインストールされていないことにある。
+# L4Tのr32.7レポジトリを追加して
+# libopencv
+# libopencv-dev
+# libopencv-python
+# libopencv-samples
+# opencv-licenses
+# を追加すればいいが、先にubuntu標準のopencvをpurgeしておく必要がある。しない場合はlibopencv-devをインストールできないため、core.hppをインストールできない。
+# そのため、C++でOpenCVコードをビルドしようとすると、ヘッダーがないためビルド出来ないDockerコンテナになる。
+# 
+# これはJetson開発コンテナとして致命的欠陥なのでDockerビルドしなおし。
+
+RUN apt-get purge -y '*opencv*' || echo "previous OpenCV installation not found" \
+    && apt-key adv --fetch-key https://repo.download.nvidia.com/jetson/jetson-ota-public.asc \
+    && echo "deb https://repo.download.nvidia.com/jetson/common r32.7 main" > /etc/apt/sources.list.d/nvidia-l4t-apt-source.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends \
+      libopencv \
+      libopencv-dev \
+      libopencv-python \
+      libopencv-samples \
+      opencv-licenses \
+    && apt autoremove -y \
+    && rm -rf /var/lib/apt/lists/*
+
+
+########################################
+# CMake 3.22.0
+########################################
+RUN mkdir -p ~/github \
+    && cd ~/github \
+    && sudo apt-get update \
+    && sudo apt-get remove -y \
+      cmake \
+    && apt-get install -y \
+      libcurl4-openssl-dev \
+    && git clone https://github.com/Kitware/CMake.git --depth 1 -b v3.22.0 \
+    && cd CMake \
+    && ./bootstrap --system-curl \
+    && make -j$(nproc) \
+    && sudo make install \
+    && rm -rf /github \
+    && rm -rf /var/lib/apt/lists/*
+
+
+ARG OPENBLAS_CORETYPE=ARMV8
+
+
+########################################
+# pip
+########################################
+RUN apt-get update \
+    && apt-get install -y \
+      libsdl2-dev \
+      libsdl2-image-dev \
+      libsdl2-mixer-dev \
+      libsdl2-net-dev \
+      libsdl2-ttf-dev \
+      libsdl2-gfx-dev \
+      libfreetype6-dev \
+      libportmidi-dev \
+    && apt autoremove -y \
+    && rm -rf /var/lib/apt/lists/*
+
+
+ARG VENV=python3
+RUN mkdir /virtualenv \
+    && chown jetson:jetson /virtualenv
+USER $USERNAME
+
+
+# python3 -m virtualenv -p python3 /virtualenv/$VENV --system-site-packages
+# これはsystem-site-packagesを引き継ぐ設定。しかし、これは~/.local/lib/python3.6/site-packages/以下にコピーされる
+# ~/.local/というのが問題になる。ユーザ個別設定となる。ここにあるライブラリをROS2で使いたい場合に、環境変数PYTHONPATHで指定する必要がある。
+# 特定ユーザのホームディレクトリにあるPATHを指定するということは避けたい。そのため--system-site-packagesは指定しない。
+# すべてのpipライブラリは作成した/virtualenv/python3/lib/python3.6/site-packages/以下に完結するように管理する
+# --system-site-packagesは引き継がないことにする。理由はsetuptoolsのバージョンが低いため。system側のsetuptoolsを更新する必要が生じてしまう。
+# https://github.com/pypa/setuptools/issues/1694#issuecomment-466010982
+#    && python3 -m virtualenv -p python3 /virtualenv/$VENV --system-site-packages \
+RUN pip3 install virtualenv \
+   && export VENV_PROMPT=`python3 -V 2>&1 | awk '{print $1$2}' | tr P p` \
+   && python3 -m virtualenv -p python3 /virtualenv/$VENV --prompt $VENV_PROMPT \
+   && echo "source /virtualenv/$VENV/bin/activate" >> ~/.bashrc
+
+
+# numpy/core/src/multiarray/numpyos.c:18:10: fatal error: xlocale.h: No such file or directory
+# #include <xlocale.h>
+RUN sudo ln -s /usr/include/locale.h /usr/include/xlocale.h
+
+
+########################################
+# OpenCV, TensorRT to Python virtualenv 
+########################################
+RUN sudo ln -s /usr/lib/python3.6/dist-packages/cv2 /virtualenv/$VENV/lib/python3.6/site-packages/cv2 \
+    && sudo ln -s /usr/lib/python3.6/dist-packages/graphsurgeon /virtualenv/$VENV/lib/python3.6/site-packages/graphsurgeon \
+    && sudo ln -s /usr/lib/python3.6/dist-packages/tensorrt /virtualenv/$VENV/lib/python3.6/site-packages/tensorrt \
+    && sudo ln -s /usr/lib/python3.6/dist-packages/uff /virtualenv/$VENV/lib/python3.6/site-packages/uff
+
+
+##############################
+# https://stackoverflow.com/questions/4011705/python-the-imagingft-c-module-is-not-installed
+# https://hideharaaws.hatenablog.com/entry/2016/04/25/173153
+# ImportError: The _imagingft C module is not installed
+# freetypeを利用できないpillowがある。8.4.0を指定すると回避できる。
+##############################
+RUN . /virtualenv/$VENV/bin/activate \
+    && pip install -U \
+      pip \
+      testresources \
+      launchpadlib \
+      setuptools \
+      wheel \
+      packaging \
+      protobuf==3.19.4 \
+      numpy==1.19.4 \
+      "jupyterlab>=3,<4" \
+      gdown \
+      pygame \
+      smbus \
+      Jetson.GPIO \
+      pylint \
+      pycuda \
+      onnx==1.11.0 \
+      tf2onnx==1.10.1 \
+      pillow==8.4.0 \
+      netron \
+      pyquaternion
+
+
+########################################
+# nodejs
+########################################
+# https://github.com/nodesource/distributions/blob/master/README.md
+RUN curl -fsSL https://deb.nodesource.com/setup_17.x | sudo -E bash - \
+    && sudo apt-get update \
+    && sudo apt-get install -y \
+         nodejs \
+    && sudo apt autoremove -y \
+    && sudo rm -rf /var/lib/apt/lists/*
+
+
+########################################
+# nodejs legacy provider
+########################################
+# https://stackoverflow.com/questions/69692842/error-message-error0308010cdigital-envelope-routinesunsupported
+# Error: error:0308010C:digital envelope routines::unsupported
+ENV NODE_OPTIONS=--openssl-legacy-provider
+
+
+########################################
+# JupyterLab save to pdf
+########################################
+RUN mkdir -p ~/github \
+    && cd ~/github \
+    && git clone https://github.com/qpdf/qpdf \
+    && cd qpdf \
+    && cmake -S . -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+    && cmake --build build \
+    && sudo cmake --install build
+
+RUN sudo apt-get update \
+    && sudo apt-get install -y \
+      texlive \
+      texlive-xetex \
+      texlive-generic-extra \
+      texlive-generic-recommended \
+      pandoc \
+    && sudo apt autoremove -y \
+    && sudo rm -rf /var/lib/apt/lists/*
+
+RUN . /virtualenv/$VENV/bin/activate \
+    && pip install -U nbconvert==5.6.1
+
+#pip install pdfrw # for python2.6-3.6
+#pip install PyPDF2 # for python2.7-3.10
+#pip install pikepdf # for python3.7-3.10
+
+# jupyter nbconvert --to pdf notebook.ipynb
+
+########################################
+# jupyter_clickable_image_widget
+########################################
+RUN . /virtualenv/$VENV/bin/activate \
+    && jupyter labextension install @jupyter-widgets/jupyterlab-manager \
+    && mkdir -p ~/github \
+    && cd ~/github \
+    && git clone -b jupyterlab-3 https://github.com/naisy/jupyter_clickable_image_widget \
+    && cd jupyter_clickable_image_widget \
+    && pip install -e . \
+    && jupyter labextension install js \
+    && jupyter-lab build \
+    # cleaning
+    && jlpm cache clean \
+    && npm cache clean --force
+
+
+########################################
+# bokehインストール
+########################################
+RUN . /virtualenv/$VENV/bin/activate \
+    && pip install jupyter_bokeh
+
+
+########################################
+# Jupyter Lab Vertual Env
+########################################
+# To set the virtualenv as "python3", jupyter notebooks works in virtualenv.
+RUN . /virtualenv/$VENV/bin/activate \
+    && python -m ipykernel install --name python3 --user
+
+
+########################################
+# Jupyter password 設定
+########################################
+#RUN jupyter notebook --generate-config
+RUN . /virtualenv/$VENV/bin/activate \
+    && python -c "from notebook.auth.security import set_password; set_password('jetson', '$HOME/.jupyter/jupyter_notebook_config.json')"
+
+
+########################################
+# Disable Jupyter autosave
+########################################
+RUN mkdir -p ~/.jupyter/lab/user-settings/\@jupyterlab/docmanager-extension \
+    && echo '{\n\
+    // Document Manager\n\
+    // @jupyterlab/docmanager-extension:plugin\n\
+    // Document Manager settings.\n\
+    // ***************************************\n\
+\n\
+    // Autosave Documents\n\
+    // Whether to autosave documents\n\
+    "autosave": false\n\
+}'\
+>  ~/.jupyter/lab/user-settings/\@jupyterlab/docmanager-extension/plugin.jupyterlab-settings
+
+
+########################################
+# Jupyter Dark Terminal Theme
+########################################
+RUN mkdir -p ~/.jupyter/lab/user-settings/\@jupyterlab/terminal-extension \
+    && echo '{\n\
+    // Terminal\n\
+    // @jupyterlab/terminal-extension:plugin\n\
+    // Terminal settings.\n\
+    // *************************************\n\
+\n\
+    // Theme\n\
+    // The theme for the terminal.\n\
+    "theme": "dark"\n\
+}'\
+>  ~/.jupyter/lab/user-settings/\@jupyterlab/terminal-extension/plugin.jupyterlab-settings
+
+
+########################################
+# Jupyter Console System Color Tango to Rxvt-LightBlue/Aquamarine
+########################################
+# ファイル名がわからん。インストールで変わる。
+# find /usr/local/share/jupyter/lab/static/ -type f | xargs grep -l "#2e3436"
+# /usr/local/share/jupyter/lab/static/vendors~main.23ff2294e1453ac6af20.js
+
+#RUN export JUPYTER_TERMINAL_COLOR_FILE=`find /usr/local/share/jupyter/lab/static/ -type f -name "*\.js" | xargs -I {} grep -l "#3465a4" {}` \
+RUN export JUPYTER_TERMINAL_COLOR_FILE=`find /virtualenv/$VENV/share/jupyter/lab/static/ -type f -name "*\.js" | xargs -I {} grep -l "#3465a4" {}` \
+    && sed -i 's/#2e3436/#000000/g' $JUPYTER_TERMINAL_COLOR_FILE \
+    && sed -i 's/#cc0000/#cd0000/g' $JUPYTER_TERMINAL_COLOR_FILE \
+    && sed -i 's/#4e9a06/#00cd00/g' $JUPYTER_TERMINAL_COLOR_FILE \
+    && sed -i 's/#c4a000/#cdcd00/g' $JUPYTER_TERMINAL_COLOR_FILE \
+    && sed -i 's/#3465a4/#add8e6/g' $JUPYTER_TERMINAL_COLOR_FILE \
+    && sed -i 's/#75507b/#cd00cd/g' $JUPYTER_TERMINAL_COLOR_FILE \
+    && sed -i 's/#06989a/#00cdcd/g' $JUPYTER_TERMINAL_COLOR_FILE \
+    && sed -i 's/#d3d7cf/#faebd7/g' $JUPYTER_TERMINAL_COLOR_FILE \
+    && sed -i 's/#555753/#404040/g' $JUPYTER_TERMINAL_COLOR_FILE \
+    && sed -i 's/#ef2929/#ff0000/g' $JUPYTER_TERMINAL_COLOR_FILE \
+    && sed -i 's/#8ae234/#00ff00/g' $JUPYTER_TERMINAL_COLOR_FILE \
+    && sed -i 's/#fce94f/#ffff00/g' $JUPYTER_TERMINAL_COLOR_FILE \
+    && sed -i 's/#729fcf/#7fffd4/g' $JUPYTER_TERMINAL_COLOR_FILE \
+    && sed -i 's/#ad7fa8/#ff00ff/g' $JUPYTER_TERMINAL_COLOR_FILE \
+    && sed -i 's/#34e2e2/#00ffff/g' $JUPYTER_TERMINAL_COLOR_FILE \
+    && sed -i 's/#eeeeec/#ffffff/g' $JUPYTER_TERMINAL_COLOR_FILE
+
+
+########################################
+# Launch JupyterLab from virtualenv with root dir and default dir
+########################################
+# https://stackoverflow.com/questions/69038787/how-to-set-default-folder-in-jupyterlab-file-browser
+#CMD . /virtualenv/python3/bin/activate && exec bash -c "jupyter-lab --ip=0.0.0.0 --no-browser --ServerApp.root_dir=/ --LabApp.default_url=/lab?file-browser-path=$HOME/data/Notebooks"
+CMD . /virtualenv/python3/bin/activate && exec bash -c "jupyter-lab --ip=0.0.0.0 --no-browser --ServerApp.root_dir=/ --LabApp.default_url=/lab?file-browser-path=$HOME"
+
+
+########################################
+# pytorch 1.10.0
+########################################
+RUN . /virtualenv/$VENV/bin/activate \
+    && cd ~/ \
+    && wget https://nvidia.box.com/shared/static/fjtbno0vpo676a25cgvuqc1wty0fkkg6.whl -O torch-1.10.0-cp36-cp36m-linux_aarch64.whl \
+    && pip install torch-1.10.0-cp36-cp36m-linux_aarch64.whl \
+    && rm -rf torch-1.10.0-cp36-cp36m-linux_aarch64.whl
+
+
+########################################
+# torchvision v0.11.1
+########################################
+RUN . /virtualenv/$VENV/bin/activate \
+    && cd ~/ \
+    && gdown https://drive.google.com/uc?id=1iMBGTJpmT-4EpG1ZIrMo5-d4PLVyGVYN -O torchvision-0.11.1-cp36-cp36m-linux_aarch64.whl \
+    && pip install torchvision-0.11.1-cp36-cp36m-linux_aarch64.whl \
+    && rm torchvision-0.11.1-cp36-cp36m-linux_aarch64.whl
+
+
+########################################
+# torch2trt jp4.6_tensorrt8 矢戸さん修正版
+########################################
+RUN . /virtualenv/$VENV/bin/activate \
+    && cd ~/github \
+    && git clone -b jp4.6_tensorrt8 https://github.com/chitoku/torch2trt \
+    && cd torch2trt \
+    && pip install --install-option="--plugins" .
+
+
+########################################
+# Tensorflow2 Object Detection to TensorRT
+########################################
+RUN . /virtualenv/$VENV/bin/activate \
+    && pip install -U --no-deps \
+      numpy==1.19.4 \
+      future==0.18.2 \
+      mock==3.0.5 \
+      keras_preprocessing==1.1.2 \
+      keras_applications==1.0.8 \
+      gast==0.4.0 \
+      protobuf==3.19.4 \
+      pybind11 \
+      cython \
+      pkgconfig
+
+RUN . /virtualenv/$VENV/bin/activate \
+    && pip install h5py==3.1.0
+
+RUN . /virtualenv/$VENV/bin/activate \
+    && pip install -U https://developer.download.nvidia.com/compute/redist/jp/v461/tensorflow/tensorflow-2.7.0+nv22.1-cp36-cp36m-linux_aarch64.whl
+
+
+########################################
+# ONNX RUNTIME
+########################################
+# https://github.com/microsoft/onnxruntime/blob/master/dockerfiles/README.md#nvidia-jetson-tx1tx2nanoxavier
+# https://elinux.org/Jetson_Zoo
+# wget https://nvidia.box.com/shared/static/jy7nqva7l88mq9i8bw3g3sklzf4kccn2.whl -O onnxruntime_gpu-1.10.0-cp36-cp36m-linux_aarch64.whl \
+#     && pip install --no-deps onnxruntime_gpu-1.10.0-cp36-cp36m-linux_aarch64.whl
+
+########################################
+# TensorRT onnx_graphsurgeon
+########################################
+# EfficientDet D0 requires TensorRT 8.2.3 ONNX.
+# Orin: 8.0, Xavier: 7.2, Nano: 5.3, TX2: 6.2
+# https://github.com/NVIDIA/TensorRT/issues/573#issuecomment-862474252
+# CMake Warning (dev) in plugin/CMakeLists.txt:
+#   Policy CMP0104 is not set: CMAKE_CUDA_ARCHITECTURES now detected for NVCC,
+#   empty CUDA_ARCHITECTURES not allowed.  Run "cmake --help-policy CMP0104"
+#   for policy details.  Use the cmake_policy command to set the policy and
+#   suppress this warning.
+
+RUN . /virtualenv/$VENV/bin/activate \
+    && cd ~/github \
+    && git clone -b release/8.2 --recursive https://github.com/NVIDIA/TensorRT \
+    && cd TensorRT \
+    && mkdir build \
+    && cd build \
+    && sed -i 's/set(DEFAULT_CUDA_VERSION 11\.3\.1)/set(DEFAULT_CUDA_VERSION 10.2.300)/g' ../CMakeLists.txt \
+    && cmake -DCMAKE_CUDA_ARCHITECTURES="72;62;53" -DGPU_ARCHS="72;62;53" -DCMAKE_C_COMPILER=gcc .. \
+    && make nvinfer_plugin
+
+# Don't need. JetPack 4.6.1 has TensorRT 8.2.1.8
+#RUN cd ~/github/TensorRT/build \
+#    && cp -P -v libnvinfer_plugin* /usr/lib/aarch64-linux-gnu \
+#    && ls -l /usr/lib/aarch64-linux-gnu/libnvinfer_plugin*
+
+# TensorRT 8.2.3 ONNX is required for EfficientDet D0.
+# TensorRT 8.2.3.0 dist/onnx_graphsurgeon-0.3.15-py2.py3-none-any.whl
+# TensorRT 8.2.4.2 dist/onnx_graphsurgeon-0.3.17-py2.py3-none-any.whl
+# TensorRT 8.2.5.1 dist/onnx_graphsurgeon-0.3.19-py2.py3-none-any.whl
+RUN . /virtualenv/$VENV/bin/activate \
+    && cd ~/github/TensorRT/tools/onnx-graphsurgeon/ \
+    && make build \
+    && pip install --no-deps dist/onnx_graphsurgeon-0.3.15-py2.py3-none-any.whl \
+    && wget https://nvidia.box.com/shared/static/pmsqsiaw4pg9qrbeckcbymho6c01jj4z.whl -O onnxruntime_gpu-1.11.0-cp36-cp36m-linux_aarch64.whl \
+    && pip install --no-deps onnxruntime_gpu-1.11.0-cp36-cp36m-linux_aarch64.whl \
+    && rm onnxruntime_gpu-1.11.0-cp36-cp36m-linux_aarch64.whl
+
+# After onnx_graphsurgeon installed, protobuf will be broken in L4T r32.7.1. Thus --no-deps required.
+
+RUN . /virtualenv/$VENV/bin/activate \
+    && cd ~/github/TensorRT/samples/python/tensorflow_object_detection_api \
+    && git clone https://github.com/tensorflow/models \
+    && cp -r models/research/object_detection . \
+    && protoc object_detection/protos/*.proto --python_out=. \
+    && sed -i 's/tile_node/#tile_node/g' create_onnx.py \
+    && wget http://download.tensorflow.org/models/object_detection/tf2/20200711/ssd_mobilenet_v2_fpnlite_320x320_coco17_tpu-8.tar.gz \
+    && tar -xvf ssd_mobilenet_v2_fpnlite_320x320_coco17_tpu-8.tar.gz \
+    && python create_onnx.py --pipeline_config ssd_mobilenet_v2_fpnlite_320x320_coco17_tpu-8/pipeline.config --saved_model ssd_mobilenet_v2_fpnlite_320x320_coco17_tpu-8/saved_model --onnx ssd_mobilenet_v2_fpnlite_320x320_coco17_tpu-8.onnx \
+    && rm -rf ssd_mobilenet_v2_fpnlite_320x320_coco17_tpu-8.tar.gz \
+    && rm -rf ssd_mobilenet_v2_fpnlite_320x320_coco17_tpu-8
+
+# cd ~/github/TensorRT/samples/python/tensorflow_object_detection_api
+# python build_engine.py --onnx ssd_mobilenet_v2_fpnlite_320x320_coco17_tpu-8.onnx --engine ssd_mobilenet_v2_fpnlite_320x320_coco17_tpu-8.engine --precision fp16
+#    && /usr/src/tensorrt/bin/trtexec --loadEngine=ssd_mobilenet_v2_fpnlite_320x320_coco17_tpu-8.engine
+
+
+########################################
+# TensorRT8 Object Detection Example
+########################################
+#RUN cd ~/github \
+#    && git clone https://github.com/pskiran1/TensorRT-support-for-Tensorflow-2-Object-Detection-Models
+
+# cd ~/github/TensorRT-support-for-Tensorflow-2-Object-Detection-Models
+# cp ~/github/TensorRT/samples/python/tensorflow_object_detection_api/ssd_mobilenet_v2_fpnlite_320x320_coco17_tpu-8.engine ./
+# python infer.py --engine ssd_mobilenet_v2_fpnlite_320x320_coco17_tpu-8.engine --input ../jetbot/notebooks/dataset/free --output ../jetbot/notebooks/dataset/blocked --preprocessor fixed_shape_resizer -t 0.4
+
+
+########################################
+# models
+########################################
+#RUN python -c "import torchvision; \
+#                model = torchvision.models.alexnet(pretrained=True); \
+#                model = torchvision.models.squeezenet1_1(pretrained=True); \
+#                model = torchvision.models.resnet18(pretrained=True); \
+#                model = torchvision.models.resnet34(pretrained=True)"
+RUN . /virtualenv/$VENV/bin/activate \
+    && python -c "import torchvision; \
+         model = torchvision.models.resnet18(pretrained=True)"
+
+
+########################################
+# graphviz
+########################################
+USER root
+RUN apt-get update \
+    && apt-get install -y \
+      python-pydot \
+      python-pydot-ng \
+      graphviz \
+    && apt autoremove -y \
+    && rm -rf /var/lib/apt/lists/*
+
+
+########################################
+# YOLOV5
+########################################
+# to build matplotlib requires gcc7
+# ‘build/freetype-2.6.1/objs/.libs/libfreetype.a’ generated with LTO version 7.3 instead of the expected 6.2
+USER $USERNAME
+RUN . /virtualenv/$VENV/bin/activate \
+    && sudo update-alternatives --set gcc /usr/bin/gcc-7 \
+    && sudo update-alternatives --set g++ /usr/bin/g++-7 \
+    && pip install -U matplotlib \
+    && sudo update-alternatives --set gcc /usr/bin/gcc-8 \
+    && sudo update-alternatives --set g++ /usr/bin/g++-8
+
+RUN . /virtualenv/$VENV/bin/activate \
+    && pip install -U tqdm \
+    && pip install -U seaborn
+
+RUN cd ~/github \
+    && git clone https://github.com/ultralytics/yolov5 \
+    && cd yolov5 \
+    && mv requirements.txt R.txt \
+    && touch requirements.txt
+
+
+########################################
+# YOLOX
+########################################
+RUN . /virtualenv/$VENV/bin/activate \
+    && pip install -U loguru \
+    && pip install -U thop \
+    && pip install -U tabulate \
+    && pip install -U pycocotools
+
+
+# edit YOLOX/tools/trt.py: execute from outside directory
+#before:
+#    engine_file_demo = os.path.join("demo", "TensorRT", "cpp", "model_trt.engine")
+#after:
+#    engine_file_demo = os.path.join(os.path.dirname(__file__), "../", "demo", "TensorRT", "cpp", "model_trt.engine")
+
+RUN . /virtualenv/$VENV/bin/activate \
+    && cd ~/github \
+    && git clone https://github.com/Megvii-BaseDetection/YOLOX \
+    && cd YOLOX \
+    && sed -i 's|os\.path\.join("demo", "TensorRT", "cpp", "model_trt\.engine")|os.path.join(os.path.dirname(__file__), "../", "demo", "TensorRT", "cpp", "model_trt.engine")|g' tools/trt.py \
+    && mv requirements.txt R.txt \
+    && touch requirements.txt \
+    && pip install -e .
+
+
+########################################
+# Donkey Car
+########################################
+RUN . /virtualenv/$VENV/bin/activate \
+    && pip install -U fastai \
+    && pip install -U nbdev \
+    && pip install -U sentencepiece!=0.1.90,!=0.1.91 \
+    && pip install -U fastbook
+
+
+########################################
+# imgaug
+########################################
+RUN . /virtualenv/$VENV/bin/activate \
+    && pip install -U \
+      six \
+      scipy \
+      scikit-image \
+      imageio \
+      Shapely
+
+RUN . /virtualenv/$VENV/bin/activate \
+    && pip install --no-deps \
+      imgaug \
+      imagecorruptions
+
+
+########################################
+# Donkey Car
+########################################
+RUN . /virtualenv/$VENV/bin/activate \
+    && pip install moviepy \
+    && pip install kivy \
+    && pip install plotly \
+    && pip install pyyaml
+
+
+########################################
+# Adafruit-Libraries 2022/04/13
+########################################
+RUN . /virtualenv/$VENV/bin/activate \
+    && pip install -U adafruit-circuitpython-busdevice==5.1.2 \
+      adafruit-circuitpython-motor==3.3.5 \
+      adafruit-circuitpython-pca9685==3.4.1 \
+      adafruit-circuitpython-register==1.9.8 \
+      adafruit-circuitpython-servokit==1.3.8 \
+      Adafruit-Blinka==6.11.1 \
+      Adafruit-GPIO==1.0.3 \
+      Adafruit-MotorHAT==1.4.0 \
+      Adafruit-PlatformDetect==3.19.6 \
+      Adafruit-PureIO==1.1.9 \
+      Adafruit-SSD1306==1.6.2
+
+
+########################################
+# deepstream_python_apps
+########################################
+USER root
+RUN apt-get update \
+    && apt-get install -y \
+      python-gi-dev \
+      python-gi-cairo \
+      apt-transport-https \
+      ca-certificates \
+      automake \
+    && update-ca-certificates \
+    && apt autoremove -y \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN chown -R $USERNAME:$USERNAME /opt/nvidia/deepstream/deepstream/
+
+
+########################################
+# Why `pyvenv` does not install `python-config`?
+# https://stackoverflow.com/questions/42020937/why-pyvenv-does-not-install-python-config
+########################################
+# https://github.com/pypa/virtualenv/issues/169
+# Here follows the python-config script that is installed by virtualenv into ${VENV}/bin. If you use python3 -m venv ${VENV}, then just copy it into this location manually until this issue gets fixed (NB there's a bug report from 2011 still without a fix as far as I can tell).
+USER $USERNAME
+
+RUN ln -s /usr/bin/python3-config /virtualenv/$VENV/bin/python3-config
+
+RUN . /virtualenv/$VENV/bin/activate \
+    && cd /opt/nvidia/deepstream/deepstream/sources/ \
+    && git clone --recursive https://github.com/NVIDIA-AI-IOT/deepstream_python_apps \
+    && cd deepstream_python_apps \
+    && cd 3rdparty/gst-python/ \
+    && export PYTHON=python3 \
+    && export C_INCLUDE_PATH=/usr/include/python3.6m \
+    && ./autogen.sh \
+    && make \
+    && sudo make install 
+
+RUN . /virtualenv/$VENV/bin/activate \
+    && cd /opt/nvidia/deepstream/deepstream/sources/deepstream_python_apps/bindings \
+    && mkdir build \
+    && cd build \
+    && cmake ..  \
+      -DPYTHON_MAJOR_VERSION=3 \
+      -DPYTHON_MINOR_VERSION=6 \
+      -DPIP_PLATFORM=linux_aarch64 \
+      -DDS_PATH=/opt/nvidia/deepstream/deepstream/ \
+    && make
+
+RUN . /virtualenv/$VENV/bin/activate \
+    && sudo apt-get update \
+    && sudo apt-get install -y \
+       gobject-introspection \
+       libgirepository1.0-dev \
+    && cd /opt/nvidia/deepstream/deepstream/sources/deepstream_python_apps/bindings/build \
+    && pip install pyds-1.1.3-py3-none-linux_aarch64.whl \
+    && sudo apt autoremove -y \
+    && sudo rm -rf /var/lib/apt/lists/*
+
+
+########################################
+# MQTT client paho
+########################################
+RUN . /virtualenv/$VENV/bin/activate \
+    && sudo apt-get update \
+    && sudo apt-get install -y \
+       libmosquitto-dev \
+       mosquitto-clients \
+    && pip install -U paho-mqtt \
+    && sudo apt autoremove -y \
+    && sudo rm -rf /var/lib/apt/lists/*
+
+
+########################################
+# MQTT Broker (Server) mosquitto
+########################################
+USER root
+RUN apt-get update \
+    && apt-get install -y \
+       libmosquitto-dev \
+       mosquitto \
+       mosquitto-clients \
+       mosquitto-dev \
+    && apt autoremove -y \
+    && rm -rf /var/lib/apt/lists/*
+
+
+USER $USERNAME

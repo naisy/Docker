@@ -1,0 +1,72 @@
+########################################
+# Docker build
+########################################
+#time sudo docker build -t naisy/jetson-jp461-donkeycar-overdrive4 -f Dockerfile.jetson-jp461-donkeycar-overdrive4 .
+
+
+########################################
+# Storage setting
+########################################
+#sudo service docker stop
+#cd /var/run
+#sudo mv docker /mnt/ssd250
+#sudo ln -s /mnt/ssd250 docker
+#sudo service docker start
+
+# https://github.com/NVIDIA/nvidia-docker/issues/1033
+# cmake fails unable to find cuda library while building an image
+#vi /etc/docker/daemon.json
+#{
+#    "runtimes": {
+#        "nvidia": {
+#            "path": "/usr/bin/nvidia-container-runtime",
+#            "runtimeArgs": []
+#        }
+#    },
+#    "default-runtime": "nvidia"
+#}
+#
+#service docker stop
+#service docker start
+
+
+# end of information
+
+
+########################################
+# Base OS repogitory
+########################################
+ARG BASE_IMAGE=naisy/jetson-jp461-deepstream601-triton-base
+FROM ${BASE_IMAGE}
+
+ARG USERNAME=jetson
+ARG OPENBLAS_CORETYPE=ARMV8
+ARG VENV=python3
+
+
+########################################
+# pip package
+########################################
+USER $USERNAME
+RUN . /virtualenv/$VENV/bin/activate \
+    && pip install pyfiglet \
+    && pip install prettytable
+
+
+RUN . /virtualenv/$VENV/bin/activate \
+    && cd ~/github \
+    && git clone -b overdrive4 https://github.com/naisy/donkeycar \
+    && git clone https://github.com/naisy/overdrive \
+    && git clone https://github.com/naisy/donkeycar_tools \
+    && cd donkeycar \
+    && pip install -e .[nano]
+
+RUN . /virtualenv/$VENV/bin/activate \
+    && cd ~/github \
+    && git clone https://github.com/tawnkramer/gym-donkeycar \
+    && cd gym-donkeycar \
+    && sed -i 's/python_requires=">=3\.7"/python_requires=">=3.6"/g' setup.py \
+    && pip install -e .
+
+
+CMD . /virtualenv/python3/bin/activate && exec bash -c "jupyter-lab --ip=0.0.0.0 --no-browser --ServerApp.root_dir=/ --LabApp.default_url=/lab?file-browser-path=$HOME/data/Notebooks"
