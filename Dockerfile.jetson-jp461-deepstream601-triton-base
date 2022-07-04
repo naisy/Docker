@@ -54,10 +54,6 @@ FROM ${BASE_IMAGE}
 ########################################
 # ENV
 ########################################
-#ARG ROS_PKG=ros_base
-ENV ROS_DISTRO=foxy
-ENV ROS_ROOT=/opt/ros/${ROS_DISTRO}
-
 ENV DEBIAN_FRONTEND=noninteractive
 #ARG OPENBLAS_CORETYPE=ARMV8
 #ARG LD_PRELOAD=/usr/lib/aarch64-linux-gnu/libgomp.so.1
@@ -567,7 +563,7 @@ RUN apt-get purge -y '*opencv*' || echo "previous OpenCV installation not found"
 
 
 ########################################
-# CMake 3.22.0
+# CMake 3.22.5
 ########################################
 RUN mkdir -p ~/github \
     && cd ~/github \
@@ -576,7 +572,7 @@ RUN mkdir -p ~/github \
       cmake \
     && apt-get install -y \
       libcurl4-openssl-dev \
-    && git clone https://github.com/Kitware/CMake.git --depth 1 -b v3.22.0 \
+    && git clone https://github.com/Kitware/CMake.git --depth 1 -b v3.22.5 \
     && cd CMake \
     && ./bootstrap --system-curl \
     && make -j$(nproc) \
@@ -846,6 +842,19 @@ RUN . /virtualenv/$VENV/bin/activate \
     && gdown https://drive.google.com/uc?id=1iMBGTJpmT-4EpG1ZIrMo5-d4PLVyGVYN -O torchvision-0.11.1-cp36-cp36m-linux_aarch64.whl \
     && pip install torchvision-0.11.1-cp36-cp36m-linux_aarch64.whl \
     && rm torchvision-0.11.1-cp36-cp36m-linux_aarch64.whl
+
+########################################
+# torchvision v0.11.1 BUILD
+########################################
+#RUN . ~/.virtualenv/$VENV/bin/activate \
+#    && mkdir -p ~/github \
+#    && cd ~/github \
+#    && git clone -b v0.11.1 https://github.com/pytorch/vision \
+#    && cd vision \
+#    && export BUILD_VERSION=0.11.1 USE_CUDA=1 USE_CUDNN=1 TORCH_CUDA_ARCH_LIST="7.2 6.2 5.3" \
+#    && export Torch_DIR=/virtualenv/$VENV/lib/python3.6/site-packages/torch \
+#    && python setup.py bdist_wheel \
+#    && pip install dist/torchvision-0.11.1-cp36-cp36m-linux_aarch64.whl
 
 
 ########################################
@@ -1177,3 +1186,18 @@ RUN apt-get update \
 
 
 USER $USERNAME
+########################################
+# Jetson Inference
+########################################
+# https://github.com/dusty-nv/jetson-inference/blob/master/Dockerfile
+RUN . /virtualenv/$VENV/bin/activate \
+    && cd ~/github \
+    && git clone --recursive https://github.com/dusty-nv/jetson-inference \
+    && cd jetson-inference \
+    && sed -i 's/nvcaffe_parser/nvparsers/g' CMakeLists.txt \
+    && mkdir build \
+    && cd build \
+    && cmake .. \
+    && make -j$(nproc) \
+    && sudo make install
+
