@@ -67,4 +67,8 @@ RUN . /virtualenv/$VENV/bin/activate \
     && pip install -e .
 
 
+RUN sudo sed -i 's/docker-/docker-donkeycar-/g' /root/.bashrc \
+    && sed -i 's/docker-/docker-donkeycar-/g' /home/$USERNAME/.bashrc
+
+
 CMD . /virtualenv/python3/bin/activate && exec bash -c "jupyter-lab --ip=0.0.0.0 --no-browser --ServerApp.root_dir=/ --LabApp.default_url=/lab?file-browser-path=$HOME/data/Notebooks"

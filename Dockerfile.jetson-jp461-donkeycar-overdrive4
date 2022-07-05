@@ -54,6 +54,7 @@ RUN . /virtualenv/$VENV/bin/activate \
 
 
 RUN . /virtualenv/$VENV/bin/activate \
+    && pip install tf-keras-vis==v0.6.2 \
     && cd ~/github \
     && git clone -b overdrive4 https://github.com/naisy/donkeycar \
     && git clone https://github.com/naisy/overdrive \
@@ -67,6 +68,10 @@ RUN . /virtualenv/$VENV/bin/activate \
     && cd gym-donkeycar \
     && sed -i 's/python_requires=">=3\.7"/python_requires=">=3.6"/g' setup.py \
     && pip install -e .
+
+
+RUN sudo sed -i 's/docker-/docker-donkeycar-overdrive4-/g' /root/.bashrc \
+    && sed -i 's/docker-/docker-donkeycar-overdrive4-/g' /home/$USERNAME/.bashrc
 
 
 CMD . /virtualenv/python3/bin/activate && exec bash -c "jupyter-lab --ip=0.0.0.0 --no-browser --ServerApp.root_dir=/ --LabApp.default_url=/lab?file-browser-path=$HOME/data/Notebooks"
