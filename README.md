@@ -39,8 +39,8 @@ Default pass: jetson
 | TARGET | TAG | RUN | VOLUME | UPDATE(YYYYMMDD) |
 | :--: | :--: | :--: | :--: | :--: |
 | Jetson JetPack 4.6.1 | naisy/jetson-jp461-deepstream601-triton-ros2-base | run-jetson-jp461-base.sh | 19.6GB | 20220704 |
-| Jetson JetPack 4.6.1 | naisy/jetson-jp461-deepstream601-triton-ros2-foxy | run-jetson-jp461-ros2-foxy.sh | 49.1GB | 20220704 |
-| Jetson JetPack 4.6.1 | naisy/jetson-jp461-deepstream601-triton-ros2-humble | run-jetson-jp461-ros2-humble.sh | 51.7GB | 20220704 |
+| Jetson JetPack 4.6.1 | naisy/jetson-jp461-deepstream601-triton-ros2-foxy | run-jetson-jp461-ros2-foxy.sh | 49.1GB | 20220706 |
+| Jetson JetPack 4.6.1 | naisy/jetson-jp461-deepstream601-triton-ros2-humble | run-jetson-jp461-ros2-humble.sh | 51.7GB | 20220706 |
 | Jetson JetPack 4.6.1 | naisy/jetson-jp461-donkeycar | run-jetson-jp461-donkeycar.sh | 19.8GB | 20220705 |
 | Jetson JetPack 4.6.1 | naisy/jetson-jp461-donkeycar-overdrive3 | run-jetson-jp461-donkeycar-overdrive3.sh | 21GB | 20220705 |
 | Jetson JetPack 4.6.1 | naisy/jetson-jp461-donkeycar-overdrive4 | run-jetson-jp461-donkeycar-overdrive4.sh | 19.8GB | 20220705 |
