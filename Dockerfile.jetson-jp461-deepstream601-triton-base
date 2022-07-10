@@ -120,7 +120,7 @@ ARG USERNAME=jetson
 RUN useradd -m $USERNAME && \
         echo "$USERNAME:$USERNAME" | chpasswd && \
         usermod --shell /bin/bash $USERNAME && \
-        usermod -aG sudo,adm,cdrom,audio,dip,video,plugdev,i2c,gpio,dialout $USERNAME && \
+        usermod -aG sudo,adm,cdrom,audio,dip,video,plugdev,i2c,gpio,dialout,input $USERNAME && \
         echo "$USERNAME ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers.d/$USERNAME && \
         chmod 0440 /etc/sudoers.d/$USERNAME && \
         # Replace 1000 with your user/group id
@@ -662,7 +662,8 @@ RUN . /virtualenv/$VENV/bin/activate \
       tf2onnx==1.10.1 \
       pillow==8.4.0 \
       netron \
-      pyquaternion
+      pyquaternion \
+      evdev
 
 
 ########################################
@@ -855,6 +856,9 @@ RUN . /virtualenv/$VENV/bin/activate \
 #    && export Torch_DIR=/virtualenv/$VENV/lib/python3.6/site-packages/torch \
 #    && python setup.py bdist_wheel \
 #    && pip install dist/torchvision-0.11.1-cp36-cp36m-linux_aarch64.whl
+# 
+# OR
+# CMAKE_ARGS='-DBUILD_TYPE=Release -DBUILD_VERSION=0.11.1 -USE_CUDNN=1 -DTORCH_CUDA_ARCH_LIST=7.2,6.2,5.3' pip install -v --no-binary=torchvision torchvision==0.11.1
 
 
 ########################################

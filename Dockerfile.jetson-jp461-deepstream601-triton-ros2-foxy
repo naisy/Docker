@@ -36,17 +36,7 @@
 ########################################
 # Base OS repogitory
 ########################################
-# ex. https://github.com/NVIDIA-AI-IOT/ros2_jetson/blob/main/docker/DockerFile.l4tbase.ros2.foxy
 # DeepStream-l4t tags: https://catalog.ngc.nvidia.com/orgs/nvidia/containers/deepstream-l4t/tags
-
-# JetPack 4.6.1
-# ARG BASE_IMAGE=nvcr.io/nvidia/deepstream-l4t:6.0.1-triton
-# JetPack 4.6
-# ARG BASE_IMAGE=nvcr.io/nvidia/deepstream-l4t:6.0-samples
-# JetPack 4.4
-# ARG BASE_IMAGE=nvcr.io/nvidia/deepstream-l4t:5.0-20.07-samples
-# JetPack 4.4.1
-# ARG BASE_IMAGE=nvcr.io/nvidia/deepstream-l4t:5.0.1-20.09-samples
 
 ARG BASE_IMAGE=naisy/jetson-jp461-deepstream601-triton-base
 FROM ${BASE_IMAGE}
@@ -92,7 +82,6 @@ RUN mkdir -p /github \
     && make install \
     && cp libyaml-cpp.so.0.7.0 /usr/lib/aarch64-linux-gnu/ \
     && ln -s /usr/lib/aarch64-linux-gnu/libyaml-cpp.so.0.7.0 /usr/lib/aarch64-linux-gnu/libyaml-cpp.so.0.7
-
 
 
 ########################################
@@ -328,13 +317,6 @@ RUN sudo apt-get update \
     && sudo apt autoremove -y \
     && sudo rm -rf /var/lib/apt/lists/*
 
-####################
-# gazebo_ros src fix
-####################
-#RUN cd /opt/ros/foxy/src/image_common/ \
-#    && git checkout foxy \
-#    && sed -i 's/set(CMAKE_CXX_FLAGS "\${CMAKE_CXX_FLAGS} \${GAZEBO_CXX_FLAGS}")/set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")/g' /opt/ros/foxy/src/gazebo_ros_pkgs/gazebo_dev/cmake/gazebo_dev-extras.cmake
-
 
 ####################
 # ros build
@@ -345,24 +327,6 @@ RUN . /virtualenv/$VENV/bin/activate \
     && export pybind11_DIR=/virtualenv/$VENV/lib/python3.6/site-packages/pybind11/share/cmake/pybind11 \
     && export PYTHONPATH=/usr/lib/python3/dist-packages \
     && colcon build --symlink-install --cmake-force-configure --cmake-clean-cache
-
-
-########################################
-# ModuleNotFoundError: No module named 'sipconfig'
-########################################
-# export PYTHONPATH=/usr/lib/python3/dist-packages
-# python -c "import sipconfig; print(sipconfig.Configuration().sip_bin)"
-# We don't need qt_gui_cpp for ros build.
-# https://github.com/ros2/ros2/issues/1139
-# https://github.com/ros-visualization/python_qt_binding/issues/103
-#colcon build --symlink-install --cmake-force-configure --cmake-clean-cache --packages-skip-by-dep python_qt_binding --packages-ignore qt_gui_cpp rqt_gui_cpp
-
-########################################
-# build single package
-########################################
-#cd /opt/ros/foxy
-#colcon build --symlink-install --cmake-force-configure --cmake-clean-cache --packages-select qt_gui_cpp
-#colcon build --symlink-install --cmake-force-configure --cmake-clean-cache --packages-select pcl_conversions
 
 
 ########################################
@@ -461,5 +425,3 @@ RUN sed -i 's/docker-/docker-ros2-foxy-/g' /root/.bashrc \
     && sed -i 's/docker-/docker-ros2-foxy-/g' /home/$USERNAME/.bashrc
 USER $USERNAME
 
-
-# -DQt5_DIR=/usr/local/opt/qt5/lib/cmake/Qt5

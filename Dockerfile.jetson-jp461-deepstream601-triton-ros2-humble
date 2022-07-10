@@ -38,15 +38,6 @@
 ########################################
 # DeepStream-l4t tags: https://catalog.ngc.nvidia.com/orgs/nvidia/containers/deepstream-l4t/tags
 
-# JetPack 4.6.1
-# ARG BASE_IMAGE=nvcr.io/nvidia/deepstream-l4t:6.0.1-triton
-# JetPack 4.6
-# ARG BASE_IMAGE=nvcr.io/nvidia/deepstream-l4t:6.0-samples
-# JetPack 4.4
-# ARG BASE_IMAGE=nvcr.io/nvidia/deepstream-l4t:5.0-20.07-samples
-# JetPack 4.4.1
-# ARG BASE_IMAGE=nvcr.io/nvidia/deepstream-l4t:5.0.1-20.09-samples
-
 ARG BASE_IMAGE=naisy/jetson-jp461-deepstream601-triton-base
 FROM ${BASE_IMAGE}
 
@@ -360,6 +351,7 @@ RUN cd ~/github \
 # diagnosticsによって追加されるself_testは現在ビルドができないため、ビルドから外します。将来再び追加されることがあります。
 RUN touch /opt/ros/$ROS_DISTRO/src/diagnostics/self_test/COLCON_IGNORE
 
+
 ####################
 # ros build
 ####################
@@ -369,116 +361,6 @@ RUN . /virtualenv/$VENV/bin/activate \
     && export pybind11_DIR=/virtualenv/$VENV/lib/python3.6/site-packages/pybind11/share/cmake/pybind11 \
     && export PYTHONPATH=/usr/lib/python3/dist-packages \
     && colcon build --symlink-install --cmake-force-configure --cmake-clean-cache
-
-# 途中から再開するときも
-# export pybind11_DIR=/virtualenv/python3/lib/python3.6/site-packages/pybind11/share/cmake/pybind11
-# export PYTHONPATH=/usr/lib/python3/dist-packages
-# colcon build --symlink-install --cmake-force-configure --cmake-clean-cache
-
-
-########################################
-# https://github.com/ros2/orocos_kdl_vendor/pull/9
-# ---
-# Finished <<< test_launch_testing [45.9s]
-# Starting >>> python_orocos_kdl_vendor
-# --- stderr: python_orocos_kdl_vendor                                                                                          
-# /opt/ros/humble/build/python_orocos_kdl_vendor/_deps/python_orocos_kdl-src/python_orocos_kdl/PyKDL/PyKDL.cpp:32:16: error: expected constructor, destructor, or type conversion before ‘(’ token
-#  PYBIND11_MODULE(PyKDL, m)
-#                 ^
-# make[2]: *** [_deps/python_orocos_kdl-build/CMakeFiles/PyKDL.dir/PyKDL/PyKDL.cpp.o] Error 1
-# make[1]: *** [_deps/python_orocos_kdl-build/CMakeFiles/PyKDL.dir/all] Error 2
-# make: *** [all] Error 2
-# ---
-#
-# まだMergeされていないpull requestを適用する
-### python_orocos_kdl_vendor pybind11 CMake error patch ###
-# cd /opt/ros/humble/src/ros2/orocos_kdl_vendor
-# git rev-parse --abbrev-ref HEAD 
-# git fetch origin pull/9/head:issues_9
-# git checkout issues_9 
-# git rev-parse --abbrev-ref HEAD
-# cd /opt/ros/humble
-# colcon build --symlink-install --cmake-force-configure --cmake-clean-cache --packages-select python_orocos_kdl_vendor
-# しかしエラー
-# /opt/ros/humble/build/python_orocos_kdl_vendor/_deps/python_orocos_kdl-src/python_orocos_kdl/PyKDL/framevel.cpp
-# error: ‘pickle’ is not a member of ‘py’
-# namespace py = pybind11;
-# py::pickle(); このpickleが無いということ
-# 人力ビルド時にexport pybind11_DIR=/virtualenv/$VENV/lib/python3.6/site-packages/pybind11/share/cmake/pybind11 の$VENVが空だったことが原因だった
-
-
-########################################
-# ModuleNotFoundError: No module named 'sipconfig'
-########################################
-# export PYTHONPATH=/usr/lib/python3/dist-packages
-# python -c "import sipconfig; print(sipconfig.Configuration().sip_bin)"
-# We don't need qt_gui_cpp for ros build.
-# https://github.com/ros2/ros2/issues/1139
-# https://github.com/ros-visualization/python_qt_binding/issues/103
-# colcon build --symlink-install --cmake-force-configure --cmake-clean-cache --packages-skip-by-dep python_qt_binding --packages-ignore qt_gui_cpp rqt_gui_cpp
-
-########################################
-# build single package
-########################################
-#cd /opt/ros/foxy
-#colcon build --symlink-install --cmake-force-configure --cmake-clean-cache --packages-select qt_gui_cpp
-#colcon build --symlink-install --cmake-force-configure --cmake-clean-cache --packages-select pcl_conversions
-
-
-####################
-# nav2_util
-####################
-# cd /opt/ros/humble
-# export pybind11_DIR=/virtualenv/python3/lib/python3.6/site-packages/pybind11/share/cmake/pybind11
-# export PYTHONPATH=/usr/lib/python3/dist-packages
-# colcon build --symlink-install --cmake-force-configure --cmake-clean-cache --packages-select nav2_util
-
-# https://answers.ros.org/question/367929/compilation-error-master-branch-navigation2/
-# /opt/ros/humble/src/navigation2/nav2_util/include/nav2_util/lifecycle_node.hpp:25:10: fatal error: bondcpp/bond.hpp: No such file or directory
-# You must work with ROS2 master or rolling to use Nav2 main branch. Sometimes it will be compatible with released distributions, but rclcpp has changed too much from Foxy to support it on our master branch anymore.
-# git clone -b ros2 https://github.com/ros/bond_core
-# colcon build --symlink-install --cmake-force-configure --cmake-clean-cache --packages-select nav2_util bond bond_core bondcpp smclib test_bond
-
-
-####################
-# nav2_smac_planner
-####################
-# /opt/ros/humble/src/navigation2/nav2_smac_planner/include/nav2_smac_planner/utils.hpp: In function ‘void nav2_smac_planner::fromJsonToMetaData(const json&, nav2_smac_planner::LatticeMetadata&)’:
-# /opt/ros/humble/src/navigation2/nav2_smac_planner/include/nav2_smac_planner/utils.hpp:113:29: error: ‘const value_type’ {aka ‘const class nlohmann::basic_json<>’} has no member named ‘get_to’; did you mean ‘get_ptr’?
-#    json.at("turning_radius").get_to(lattice_metadata.min_turning_radius);
-#
-# https://github.com/nlohmann/json/issues/1648#issuecomment-504539463
-# apt list --installed | grep json
-# nlohmann-json-dev/now 2.1.1-1.1 all [installed,local]
-# This is nlohmann-jeson-dev bug. 2.1.1は5年前2018年
-# bugfixは2019年
-# cd ~/github
-# git clone -b v3.10.5 https://github.com/nlohmann/json
-# cd json
-# mkdir build
-# cd build
-# cmake .. 
-# cmake --build .
-# sudo make install
-
-
-####################
-# navigation2
-####################
-# /opt/ros/humble/src/navigation2/nav2_waypoint_follower/include/nav2_waypoint_follower/plugins/photo_at_waypoint.hpp:35:10: fatal error: opencv4/opencv2/core.hpp: No such file or directory
-
-
-####################
-# self_test
-####################
-# --- stderr: self_test                              
-# /opt/ros/humble/src/diagnostics/self_test/src/run_selftest.cpp: In member function ‘rclcpp::Client<diagnostic_msgs::srv::SelfTest>::SharedFuture ClientNode::queue_async_request()’:
-# /opt/ros/humble/src/diagnostics/self_test/src/run_selftest.cpp:94:75: error: conversion from ‘rclcpp::Client<diagnostic_msgs::srv::SelfTest>::SharedFutureAndRequestId’ to ‘rclcpp::Client<diagnostic_msgs::srv::SelfTest>::SharedFuture’ {aka ‘std::shared_future<std::shared_ptr<diagnostic_msgs::srv::SelfTest_Response_<std::allocator<void> > > >’} is ambiguous
-#      return client_->async_send_request(request, response_received_callback);
-
-# https://github.com/ros/diagnostics/issues/206
-# https://github.com/ros/rosdistro/pull/30890
-# diagnosticsによって追加されるself_testは現在ビルドができないため、ビルドから外します。将来再び追加されることがあります。
 
 
 ########################################
@@ -568,5 +450,3 @@ RUN sed -i 's/docker-/docker-ros2-humble-/g' /root/.bashrc \
     && sed -i 's/docker-/docker-ros2-humble-/g' /home/$USERNAME/.bashrc
 USER $USERNAME
 
-
-# -DQt5_DIR=/usr/local/opt/qt5/lib/cmake/Qt5
