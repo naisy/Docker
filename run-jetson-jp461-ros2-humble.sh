@@ -50,7 +50,7 @@ fi
 ########################################
 # docker image
 ########################################
-IMG=naisy/jeton-jp461-deepstream601-triton-ros2-humble
+IMG=naisy/jetson-jp461-deepstream601-triton-ros2-humble
 
 docker run \
     --runtime=nvidia \
@@ -69,6 +69,7 @@ docker run \
     -v /run/user/1000/:/run/user/1000/:ro \
     -v /var/run/dbus/system_bus_socket:/var/run/dbus/system_bus_socket:ro \
     -v /etc/localtime:/etc/localtime:ro \
+    -v /usr/lib/aarch64-linux-gnu/gstreamer-1.0/libgstpango.so:/usr/lib/aarch64-linux-gnu/gstreamer-1.0/libgstpango.so:ro \
     --mount type=bind,source=$CSI_CAMERA,target=$CSI_CAMERA \
     -v /dev/:/dev/ \
     -u $DOCKER_USER \

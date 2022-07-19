@@ -3,6 +3,12 @@
 ########################################
 #time sudo docker build -t naisy/jetson-jp461-deepstream601-triton-base -f Dockerfile.jetson-jp461-deepstream601-triton-base .
 
+# docker push
+#docker login --username=naisy
+#docker images
+#docker push naisy/jetson-jp461-deepstream601-triton-base
+#docker image tag naisy/jetson-jp461-deepstream601-triton-base:latest naisy/jetson-jp461-deepstream601-triton-base:20220511
+#docker push naisy/jetson-jp461-deepstream601-triton-base:20220511
 
 ########################################
 # Storage setting
@@ -862,11 +868,11 @@ RUN . /virtualenv/$VENV/bin/activate \
 
 
 ########################################
-# torch2trt jp4.6_tensorrt8 矢戸さん修正版
+# torch2trt
 ########################################
 RUN . /virtualenv/$VENV/bin/activate \
     && cd ~/github \
-    && git clone -b jp4.6_tensorrt8 https://github.com/chitoku/torch2trt \
+    && git clone https://github.com/NVIDIA-AI-IOT/torch2trt \
     && cd torch2trt \
     && pip install --install-option="--plugins" .
 
@@ -1204,4 +1210,35 @@ RUN . /virtualenv/$VENV/bin/activate \
     && cmake .. \
     && make -j$(nproc) \
     && sudo make install
+
+
+########################################
+# pytorchcv
+########################################
+RUN . /virtualenv/$VENV/bin/activate \
+    && pip install pytorchcv
+
+
+########################################
+# gstreamer
+########################################
+# timeoverlay
+# gst-inspect-1.0 timeoverlay
+# No such element or plugin 'timeoverlay'
+# ls /usr/lib/aarch64-linux-gnu/gstreamer-1.0/libgstpango.so
+# ls: cannot access '/usr/lib/aarch64-linux-gnu/gstreamer-1.0/libgstpango.so': No such file or directory
+# docker run mount
+# libgstpango.so - use
+# libgstximagesink.so - not use
+# libgstxvimagesink.so - not use
+
+RUN sudo apt-get update \
+    && sudo apt-get install -y \
+      gstreamer1.0-clutter-3.0 \
+      gstreamer1.0-gtk3 \
+      gstreamer1.0-gl \
+      gstreamer1.0-pulseaudio \
+      libcanberra-gtk-module \
+    && sudo apt autoremove -y \
+    && sudo rm -rf /var/lib/apt/lists/*
 
