@@ -3,12 +3,6 @@
 ########################################
 #time sudo docker build -t naisy/jetson-jp461-deepstream601-triton-base -f Dockerfile.jetson-jp461-deepstream601-triton-base .
 
-# docker push
-#docker login --username=naisy
-#docker images
-#docker push naisy/jetson-jp461-deepstream601-triton-base
-#docker image tag naisy/jetson-jp461-deepstream601-triton-base:latest naisy/jetson-jp461-deepstream601-triton-base:20220511
-#docker push naisy/jetson-jp461-deepstream601-triton-base:20220511
 
 ########################################
 # Storage setting
@@ -676,7 +670,11 @@ RUN . /virtualenv/$VENV/bin/activate \
 # nodejs
 ########################################
 # https://github.com/nodesource/distributions/blob/master/README.md
-RUN curl -fsSL https://deb.nodesource.com/setup_17.x | sudo -E bash - \
+# https://deb.nodesource.com/setup_14.x - Node.js 14 LTS "Fermium" (recommended)
+# https://deb.nodesource.com/setup_16.x - Node.js 16 "Gallium"
+# https://deb.nodesource.com/setup_18.x - Node.js 18 "Eighteen" (current)
+
+RUN curl -fsSL https://deb.nodesource.com/setup_14.x | sudo -E bash - \
     && sudo apt-get update \
     && sudo apt-get install -y \
          nodejs \
@@ -689,7 +687,7 @@ RUN curl -fsSL https://deb.nodesource.com/setup_17.x | sudo -E bash - \
 ########################################
 # https://stackoverflow.com/questions/69692842/error-message-error0308010cdigital-envelope-routinesunsupported
 # Error: error:0308010C:digital envelope routines::unsupported
-ENV NODE_OPTIONS=--openssl-legacy-provider
+#ENV NODE_OPTIONS=--openssl-legacy-provider
 
 
 ########################################
@@ -726,11 +724,18 @@ RUN . /virtualenv/$VENV/bin/activate \
 # jupyter_clickable_image_widget
 ########################################
 RUN . /virtualenv/$VENV/bin/activate \
+    && pip install \
+      jupyter-packaging \
+      cookiecutter \
+      chardet==4.0.0 \
     && jupyter labextension install @jupyter-widgets/jupyterlab-manager \
     && mkdir -p ~/github \
     && cd ~/github \
     && git clone -b jupyterlab-3 https://github.com/naisy/jupyter_clickable_image_widget \
-    && cd jupyter_clickable_image_widget \
+    && cd jupyter_clickable_image_widget/js \
+    && python -m jupyterlab.upgrade_extension --no-input . \
+    && npm install css-loader -D \
+    && cd .. \
     && pip install -e . \
     && jupyter labextension install js \
     && jupyter-lab build \
@@ -759,7 +764,7 @@ RUN . /virtualenv/$VENV/bin/activate \
 ########################################
 #RUN jupyter notebook --generate-config
 RUN . /virtualenv/$VENV/bin/activate \
-    && python -c "from notebook.auth.security import set_password; set_password('jetson', '$HOME/.jupyter/jupyter_notebook_config.json')"
+    && python -c "from notebook.auth.security import set_password; set_password('jupyter', '$HOME/.jupyter/jupyter_notebook_config.json')"
 
 
 ########################################

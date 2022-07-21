@@ -61,7 +61,6 @@ docker run \
     --mount type=bind,source=$HOST_MOUNT_PATH,target=$DOCKER_MOUNT_PATH \
     -e DISPLAY=$DISPLAY \
     -e LD_PRELOAD=/usr/lib/aarch64-linux-gnu/libgomp.so.1 \
-    -e NODE_OPTIONS=--openssl-legacy-provider \
     -e OPENBLAS_CORETYPE=ARMV8 \
     -e QT_GRAPHICSSYSTEM=native \
     -e QT_X11_NO_MITSHM=1 \

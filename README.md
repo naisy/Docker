@@ -31,17 +31,17 @@ sudo su
 
 http://127.0.0.1:8888
 
-Default pass: jetson
+Default pass: jupyter
 
 
 ## Docker
 
 | TARGET | TAG | RUN | VOLUME | UPDATE(YYYYMMDD) |
 | :--: | :--: | :--: | :--: | :--: |
-| Jetson JetPack 4.6.1 | naisy/jetson-jp461-deepstream601-triton-ros2-base | run-jetson-jp461-base.sh | 19.7GB | 20220719 |
-| Jetson JetPack 4.6.1 | naisy/jetson-jp461-deepstream601-triton-ros2-foxy | run-jetson-jp461-ros2-foxy.sh | 49.2GB | 20220719 |
-| Jetson JetPack 4.6.1 | naisy/jetson-jp461-deepstream601-triton-ros2-humble | run-jetson-jp461-ros2-humble.sh | 51.8GB | 20220719 |
-| Jetson JetPack 4.6.1 | naisy/jetson-jp461-donkeycar | run-jetson-jp461-donkeycar.sh | 19.8GB | 20220719 |
-| Jetson JetPack 4.6.1 | naisy/jetson-jp461-donkeycar-overdrive3 | run-jetson-jp461-donkeycar-overdrive3.sh | 21GB | 20220719 |
-| Jetson JetPack 4.6.1 | naisy/jetson-jp461-donkeycar-overdrive4 | run-jetson-jp461-donkeycar-overdrive4.sh | 19.8GB | 20220719 |
+| Jetson JetPack 4.6.1 | naisy/jetson-jp461-deepstream601-triton-ros2-base | run-jetson-jp461-base.sh | 19.7GB | 20220721 |
+| Jetson JetPack 4.6.1 | naisy/jetson-jp461-deepstream601-triton-ros2-foxy | run-jetson-jp461-ros2-foxy.sh | 49.2GB | 20220721 |
+| Jetson JetPack 4.6.1 | naisy/jetson-jp461-deepstream601-triton-ros2-humble | run-jetson-jp461-ros2-humble.sh | 51.8GB | 20220721 |
+| Jetson JetPack 4.6.1 | naisy/jetson-jp461-donkeycar | run-jetson-jp461-donkeycar.sh | 19.9GB | 20220721 |
+| Jetson JetPack 4.6.1 | naisy/jetson-jp461-donkeycar-overdrive3 | run-jetson-jp461-donkeycar-overdrive3.sh | 21.1GB | 20220721 |
+| Jetson JetPack 4.6.1 | naisy/jetson-jp461-donkeycar-overdrive4 | run-jetson-jp461-donkeycar-overdrive4.sh | 19.9GB | 20220721 |
 
