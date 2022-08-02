@@ -1,0 +1,88 @@
+########################################
+# Docker build
+########################################
+#time sudo docker build -t naisy/jetson-jp461-carla -f Dockerfile.jetson-jp461-carla .
+
+
+########################################
+# Storage setting
+########################################
+#sudo service docker stop
+#cd /var/run
+#sudo mv docker /mnt/ssd250
+#sudo ln -s /mnt/ssd250 docker
+#sudo service docker start
+
+# https://github.com/NVIDIA/nvidia-docker/issues/1033
+# cmake fails unable to find cuda library while building an image
+#vi /etc/docker/daemon.json
+#{
+#    "runtimes": {
+#        "nvidia": {
+#            "path": "/usr/bin/nvidia-container-runtime",
+#            "runtimeArgs": []
+#        }
+#    },
+#    "default-runtime": "nvidia"
+#}
+#
+#service docker stop
+#service docker start
+
+
+# end of information
+
+
+########################################
+# Base OS repogitory
+########################################
+ARG BASE_IMAGE=naisy/jetson-jp461-deepstream601-triton-base
+FROM ${BASE_IMAGE}
+
+ARG USERNAME=jetson
+ARG OPENBLAS_CORETYPE=ARMV8
+ARG VENV=python3
+
+
+########################################
+# apt package
+########################################
+USER $USERNAME
+RUN sudo apt-get update \
+    && sudo apt-get install -y \
+      llvm-8-dev \
+      clang-8 \
+      rsync \
+      libtiff-dev \
+    && sudo apt autoremove -y \
+    && sudo rm -rf /var/lib/apt/lists/*
+
+
+########################################
+# clang/clang++
+########################################
+RUN sudo update-alternatives --install /usr/bin/clang clang /usr/lib/llvm-8/bin/clang 180 \
+    && sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/lib/llvm-8/bin/clang++ 180
+
+
+########################################
+# Carla 0.9.13
+########################################
+# make LibCarla: boost build 
+# virtualenv python path: /virtualenv/python3/bin/python
+# python.h header file path: /usr/include/python3.6m/pyconfig.h
+# --includedir=/usr/include/python3.6m cannot find pyconfig.h
+# therefore, don't use virtualenv
+
+RUN cd ~/github \
+    && git clone -b 0.9.13 https://github.com/carla-simulator/carla \
+    && cd carla \
+    && export CC=/usr/bin/clang \
+    && export CXX=/usr/bin/clang++ \
+    && make LibCarla \
+    && . /virtualenv/$VENV/bin/activate \
+    && make osm2odr \
+    && make PythonAPI \
+    && pip install PythonAPI/carla/dist/carla-0.9.13-cp36-cp36m-linux_aarch64.whl
+
+CMD . /virtualenv/python3/bin/activate && exec bash -c "jupyter-lab --ip=0.0.0.0 --no-browser --ServerApp.root_dir=/ --LabApp.default_url=/lab?file-browser-path=$HOME/data/Notebooks"
