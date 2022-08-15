@@ -351,7 +351,6 @@ RUN cd ~/github \
 # diagnosticsによって追加されるself_testは現在ビルドができないため、ビルドから外します。将来再び追加されることがあります。
 RUN touch /opt/ros/$ROS_DISTRO/src/diagnostics/self_test/COLCON_IGNORE
 
-
 ####################
 # ros build
 ####################
@@ -436,6 +435,47 @@ RUN . /virtualenv/$VENV/bin/activate \
       src/rviz_visual_tools
 
 
+RUN . /virtualenv/$VENV/bin/activate \
+    && . ${ROS_ROOT}/install/setup.sh \
+    && cd /opt/ros/$ROS_DISTRO/src \
+    && git clone -b ros2 https://github.com/ros-planning/random_numbers \
+    && git clone -b ros2 https://github.com/ros-planning/geometric_shapes \
+    && cd /opt/ros/$ROS_DISTRO \
+    && colcon build --symlink-install --cmake-force-configure --cmake-clean-cache --packages-skip-build-finished --continue-on-error --base-paths \
+      src/random_numbers \
+      src/geometric_shapes
+
+
+RUN . /virtualenv/$VENV/bin/activate \
+    && . ${ROS_ROOT}/install/setup.sh \
+    && cd /opt/ros/$ROS_DISTRO/src \
+    && git clone -b ros2 https://github.com/wg-perception/object_recognition_msgs \
+    && git clone -b ros2 https://github.com/OctoMap/octomap_msgs \
+    && git clone -b master https://github.com/pantor/ruckig \
+    && git clone -b ros2 https://github.com/ros-planning/srdfdom \
+    && git clone -b ros2 https://github.com/ros-planning/moveit_msgs \
+    && git clone -b humble https://github.com/ros-controls/control_msgs \
+    && git clone -b ros2 https://github.com/ros-planning/moveit_resources \
+    && git clone -b ros2 https://github.com/ros-planning/warehouse_ros \
+    && git clone -b master https://github.com/ros-controls/ros2_control \
+    && git clone -b master https://github.com/ros-controls/ros2_controllers \
+    && git clone -b master https://github.com/ros-controls/ros2_control_demos \
+    && git clone -b master https://github.com/ros-controls/realtime_tools \
+    && git clone -b ros2-master https://github.com/ros-controls/control_toolbox \
+    && git clone -b humble https://github.com/ros-planning/moveit2 \
+    && cd ruckig \
+    && git checkout 170536213a3b643d8845873256b65c53ee6f47c2 \
+    && cd /opt/ros/$ROS_DISTRO \
+    && sed -i 's|target_include_directories(\${MOVEIT_LIB_NAME} PUBLIC \$<BUILD_INTERFACE:\${CMAKE_CURRENT_BINARY_DIR}>)|target_include_directories(${MOVEIT_LIB_NAME} PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}> /opt/ros/humble/install/octomap_msgs/include)|g' src/moveit2/moveit_core/collision_detection_bullet/CMakeLists.txt \
+    && sed -i 's|target_include_directories(\${MOVEIT_LIB_NAME} PUBLIC \$<BUILD_INTERFACE:\${CMAKE_CURRENT_BINARY_DIR}>)|target_include_directories(${MOVEIT_LIB_NAME} PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}> /opt/ros/humble/install/octomap_msgs/include)|g' src/moveit2/moveit_core/planning_scene/CMakeLists.txt \
+    && sed -i 's|^target_link_libraries(\${MOVEIT_LIB_NAME}$|target_link_libraries(${MOVEIT_LIB_NAME}\n  stdc++fs|g' src/moveit2/moveit_core/robot_model/CMakeLists.txt \
+    && export CMAKE_BUILD_TYPE=Release \
+    && export CMAKE_CXX_STANDARD=17 \
+    && colcon build --symlink-install --cmake-force-configure --cmake-clean-cache --packages-skip-build-finished --base-paths \
+      src
+
+
+# colcon build --symlink-install --cmake-force-configure --cmake-clean-cache --packages-skip-build-finished --continue-on-error --base-paths src
 ####################
 # setup.bash
 ####################
