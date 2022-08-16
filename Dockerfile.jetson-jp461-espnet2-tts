@@ -1,7 +1,7 @@
 ########################################
 # Docker build
 ########################################
-#time sudo docker build -t naisy/jetson-jp461-carla -f Dockerfile.jetson-jp461-carla .
+#time sudo docker build -t naisy/jetson-jp461-espnet2-tts -f Dockerfile.jetson-jp461-espnet2-tts .
 
 
 ########################################
@@ -36,6 +36,8 @@
 ########################################
 # Base OS repogitory
 ########################################
+# DeepStream-l4t tags: https://catalog.ngc.nvidia.com/orgs/nvidia/containers/deepstream-l4t/tags
+
 ARG BASE_IMAGE=naisy/jetson-jp461-deepstream601-triton-base
 FROM ${BASE_IMAGE}
 
@@ -43,49 +45,32 @@ ARG USERNAME=jetson
 ARG OPENBLAS_CORETYPE=ARMV8
 ARG VENV=python3
 
+USER $USERNAME
 
 ########################################
-# apt package
+# espnet2_tts
 ########################################
-USER $USERNAME
-RUN sudo apt-get update \
+RUN . /virtualenv/$VENV/bin/activate \
+    && sudo apt-get update \
     && sudo apt-get install -y \
-      llvm-8-dev \
-      clang-8 \
-      rsync \
-      libtiff-dev \
+      llvm-10-dev \
+    && cd ~/github \
+    && git clone https://github.com/espnet/espnet \
+    && cd espnet \
+    && sed -i 's|python_requires=">=3.7.0",|python_requires=">=3.6.9",|g' setup.py \
+    && sed -i 's|"Programming Language :: Python :: 3",|"Programming Language :: Python :: 3",\n        "Programming Language :: Python :: 3.6",|g' setup.py \
+    && LLVM_CONFIG=/usr/lib/llvm-10/bin/llvm-config pip install -e . \
+    && cd espnet2/gan_tts/vits/monotonic_align \
+    && pip install -e . \
+    && cd ~/github \
+    && git clone https://github.com/espnet/espnet_model_zoo \
+    && cd espnet_model_zoo \
+    && pip install -e . \
     && sudo apt autoremove -y \
     && sudo rm -rf /var/lib/apt/lists/*
 
+RUN sudo sed -i 's/docker-/docker-espnet2-tts-/g' /root/.bashrc \
+    && sed -i 's/docker-/docker-espnet2-tts-/g' /home/$USERNAME/.bashrc
 
-########################################
-# clang/clang++
-########################################
-RUN sudo update-alternatives --install /usr/bin/clang clang /usr/lib/llvm-8/bin/clang 180 \
-    && sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/lib/llvm-8/bin/clang++ 180
-
-
-########################################
-# Carla 0.9.13
-########################################
-# make LibCarla: boost build 
-# virtualenv python path: /virtualenv/python3/bin/python
-# python.h header file path: /usr/include/python3.6m/pyconfig.h
-# --includedir=/usr/include/python3.6m cannot find pyconfig.h
-# therefore, don't use virtualenv
-
-RUN cd ~/github \
-    && git clone -b 0.9.13 https://github.com/carla-simulator/carla \
-    && cd carla \
-    && export CC=/usr/bin/clang \
-    && export CXX=/usr/bin/clang++ \
-    && make LibCarla \
-    && . /virtualenv/$VENV/bin/activate \
-    && make osm2odr \
-    && make PythonAPI \
-    && pip install PythonAPI/carla/dist/carla-0.9.13-cp36-cp36m-linux_aarch64.whl
-
-RUN sudo sed -i 's/docker-/docker-carla-/g' /root/.bashrc \
-    && sed -i 's/docker-/docker-carla-/g' /home/$USERNAME/.bashrc
 
 CMD . /virtualenv/python3/bin/activate && exec bash -c "jupyter-lab --ip=0.0.0.0 --no-browser --ServerApp.root_dir=/ --LabApp.default_url=/lab?file-browser-path=$HOME/data/Notebooks"
