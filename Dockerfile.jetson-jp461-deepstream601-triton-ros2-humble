@@ -441,11 +441,12 @@ RUN . /virtualenv/$VENV/bin/activate \
     && git clone -b ros2 https://github.com/ros-planning/random_numbers \
     && git clone -b ros2 https://github.com/ros-planning/geometric_shapes \
     && cd /opt/ros/$ROS_DISTRO \
-    && colcon build --symlink-install --cmake-force-configure --cmake-clean-cache --packages-skip-build-finished --continue-on-error --base-paths \
+    && colcon build --symlink-install --cmake-force-configure --cmake-clean-cache --packages-skip-build-finished --base-paths \
       src/random_numbers \
       src/geometric_shapes
 
 
+# git log -1 | grep ^commit 
 RUN . /virtualenv/$VENV/bin/activate \
     && . ${ROS_ROOT}/install/setup.sh \
     && cd /opt/ros/$ROS_DISTRO/src \
@@ -463,8 +464,35 @@ RUN . /virtualenv/$VENV/bin/activate \
     && git clone -b master https://github.com/ros-controls/realtime_tools \
     && git clone -b ros2-master https://github.com/ros-controls/control_toolbox \
     && git clone -b humble https://github.com/ros-planning/moveit2 \
-    && cd ruckig \
+    ### commit id
+    && cd /opt/ros/$ROS_DISTRO/src/object_recognition_msgs \
+    && git checkout 811fb385ec4c1919dce2b30334fe9f49639073fd \
+    && cd /opt/ros/$ROS_DISTRO/src/octomap_msgs \
+    && git checkout 65d0b3b81f890b5dc3bf531abe0e8c12ef3858e2 \
+    && cd /opt/ros/$ROS_DISTRO/src/ruckig \
     && git checkout 170536213a3b643d8845873256b65c53ee6f47c2 \
+    && cd /opt/ros/$ROS_DISTRO/src/srdfdom \
+    && git checkout 91d7db8b28d64008145a7281febd08c2f59a0fe8 \
+    && cd /opt/ros/$ROS_DISTRO/src/moveit_msgs \
+    && git checkout 922fa3253a5b96423b5014492bad8ee0ca96f639 \
+    && cd /opt/ros/$ROS_DISTRO/src/control_msgs \
+    && git checkout 81d31dee97fed2b0029b502fa2d85314e6ca8371 \
+    && cd /opt/ros/$ROS_DISTRO/src/moveit_resources \
+    && git checkout c8ac191f80d5afccf6ac6d7ac13d450a6d05ad5e \
+    && cd /opt/ros/$ROS_DISTRO/src/warehouse_ros \
+    && git checkout 653e4b2afb550dc9805ed3c84971ac79e0796b4e \
+    && cd /opt/ros/$ROS_DISTRO/src/ros2_control \
+    && git checkout 8023fe4e8f81f0ec4a56ae0b14a45fe5de4f3129 \
+    && cd /opt/ros/$ROS_DISTRO/src/ros2_controllers \
+    && git checkout c74e31a29255fa2f66f45874195d50a0f5cba471 \
+    && cd /opt/ros/$ROS_DISTRO/src/ros2_control_demos \
+    && git checkout f42b06f92f8c28bcfa2465fa4f9eb61cbfa9c639 \
+    && cd /opt/ros/$ROS_DISTRO/src/realtime_tools \
+    && git checkout e0b79baa7f81851119f3a6347da82410fa94dce1 \
+    && cd /opt/ros/$ROS_DISTRO/src/control_toolbox \
+    && git checkout 29190b4acab8c62c9e1787310674aa739f6ff93c \
+    && cd /opt/ros/$ROS_DISTRO/src/moveit2 \
+    && git checkout 7dd0434f742d6586f32843802135ebcc2720c79c \
     && cd /opt/ros/$ROS_DISTRO \
     && sed -i 's|target_include_directories(\${MOVEIT_LIB_NAME} PUBLIC \$<BUILD_INTERFACE:\${CMAKE_CURRENT_BINARY_DIR}>)|target_include_directories(${MOVEIT_LIB_NAME} PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}> /opt/ros/humble/install/octomap_msgs/include)|g' src/moveit2/moveit_core/collision_detection_bullet/CMakeLists.txt \
     && sed -i 's|target_include_directories(\${MOVEIT_LIB_NAME} PUBLIC \$<BUILD_INTERFACE:\${CMAKE_CURRENT_BINARY_DIR}>)|target_include_directories(${MOVEIT_LIB_NAME} PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}> /opt/ros/humble/install/octomap_msgs/include)|g' src/moveit2/moveit_core/planning_scene/CMakeLists.txt \
@@ -489,4 +517,3 @@ RUN echo "export ROS_ROOT=$ROS_ROOT" >> /root/.bashrc \
 RUN sed -i 's/docker-/docker-ros2-humble-/g' /root/.bashrc \
     && sed -i 's/docker-/docker-ros2-humble-/g' /home/$USERNAME/.bashrc
 USER $USERNAME
-
