@@ -42,7 +42,7 @@ fi
 ########################################
 # docker image
 ########################################
-IMG=naisy/pc-ubuntu1804-donkeycar4
+IMG=naisy/pc-ubuntu1804-donkeycar4-tf22
 
 docker run \
     --gpus all \
