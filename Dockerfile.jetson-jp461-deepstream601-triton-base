@@ -565,20 +565,20 @@ RUN apt-get purge -y '*opencv*' || echo "previous OpenCV installation not found"
 ########################################
 # CMake 3.22.5
 ########################################
+USER $USERNAME
 RUN mkdir -p ~/github \
     && cd ~/github \
     && sudo apt-get update \
     && sudo apt-get remove -y \
       cmake \
-    && apt-get install -y \
-      libcurl4-openssl-dev \
     && git clone https://github.com/Kitware/CMake.git --depth 1 -b v3.22.5 \
     && cd CMake \
     && ./bootstrap --system-curl \
     && make -j$(nproc) \
     && sudo make install \
-    && rm -rf /github \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf ~/github \
+    && sudo apt autoremove -y \
+    && sudo rm -rf /var/lib/apt/lists/*
 
 
 ARG OPENBLAS_CORETYPE=ARMV8
@@ -587,6 +587,7 @@ ARG OPENBLAS_CORETYPE=ARMV8
 ########################################
 # pip
 ########################################
+USER root
 RUN apt-get update \
     && apt-get install -y \
       libsdl2-dev \
@@ -603,7 +604,7 @@ RUN apt-get update \
 
 ARG VENV=python3
 RUN mkdir /virtualenv \
-    && chown jetson:jetson /virtualenv
+    && chown $USERNAME:$USERNAME /virtualenv
 USER $USERNAME
 
 
@@ -649,7 +650,7 @@ RUN . /virtualenv/$VENV/bin/activate \
       setuptools \
       wheel \
       packaging \
-      protobuf==3.19.4 \
+      Cython \
       numpy==1.19.4 \
       "jupyterlab>=3,<4" \
       gdown \
@@ -657,13 +658,45 @@ RUN . /virtualenv/$VENV/bin/activate \
       smbus \
       Jetson.GPIO \
       pylint \
-      pycuda \
-      onnx==1.11.0 \
-      tf2onnx==1.10.1 \
       pillow==8.4.0 \
-      netron \
       pyquaternion \
       evdev
+
+
+########################################
+# protobuf --cpp_implementation
+########################################
+# 2022-09-30 10:29:05,363 - WARNING - ***IMPORTANT*** Installed protobuf is not cpp accelerated. Conversion will be extremely slow. See https://github.com/onnx/tensorflow-onnx/issues/1557
+# with cpp_implementation, tf2onnx.convert .pb to .onnx is 5 times faster.
+
+RUN sudo apt-get update \
+    && sudo apt-get install -y \
+      automake \
+    && sudo apt autoremove -y \
+    && sudo rm -rf /var/lib/apt/lists/* \
+    && . /virtualenv/$VENV/bin/activate \
+    && mkdir -p ~/github \
+    && cd ~/github \
+    && git clone -b 3.19.x --recursive https://github.com/protocolbuffers/protobuf.git \
+    && cd protobuf \
+    && export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=cpp \
+    && ./autogen.sh \
+    && ./configure --prefix=/usr/local \
+    && make -j$(nproc) \
+    && make check \
+    && sudo make install \
+    && sudo ldconfig \
+    && cd python \
+    && python setup.py build --cpp_implementation \
+    && python setup.py test --cpp_implementation \
+    && pip install --install-option="--cpp_implementation" .
+
+RUN . /virtualenv/$VENV/bin/activate \
+    && pip install -U \
+      pycuda \
+      onnx==1.11.0 \
+      tf2onnx==1.12.1 \
+      netron
 
 
 ########################################
@@ -892,6 +925,7 @@ RUN . /virtualenv/$VENV/bin/activate \
       mock==3.0.5 \
       keras_preprocessing==1.1.2 \
       keras_applications==1.0.8 \
+      keras==2.6 \
       gast==0.4.0 \
       protobuf==3.19.4 \
       pybind11 \
@@ -1259,14 +1293,23 @@ RUN sudo apt-get update \
 ########################################
 # nvdewarper extend
 ########################################
+RUN cd /opt/nvidia/deepstream/deepstream-6.0/sources/apps/sample_apps \
+    && git clone https://github.com/NVIDIA-AI-IOT/Deepstream-Dewarper-App
+
+# dewarper拡張ライブラリを導入すると、gstreamerのブラックリストにlibnvdsgst_deepstream_bins.soが追加されてしまう。
+# そのため、使う使わないはあとで決めることができるようにする
+#gst-inspect-1.0 -b
+#Blacklisted files:
+#  libnvdsgst_deepstream_bins.so
+
 # .soと.hしか使わないから、インストール方法はこれでいい
-RUN cd /opt/nvidia/deepstream/deepstream-6.0/lib/gst-plugins/ \
-    && mv libnvdsgst_dewarper.so libnvdsgst_dewarper.so.org \
-    && wget https://github.com/NVIDIA-AI-IOT/Deepstream-Dewarper-App/raw/main/plugin_libraries/jetson_bin/libnvdsgst_dewarper.so \
-    && chmod 755 libnvdsgst_dewarper.so \
-    && cd /opt/nvidia/deepstream/deepstream-6.0/sources/includes/ \
-    && mv nvds_dewarper_meta.h nvds_dewarper_meta.h.org \
-    && wget https://raw.githubusercontent.com/NVIDIA-AI-IOT/Deepstream-Dewarper-App/main/nvds_dewarper_meta.h
+#RUN cd /opt/nvidia/deepstream/deepstream-6.0/lib/gst-plugins/ \
+#    && mv libnvdsgst_dewarper.so libnvdsgst_dewarper.so.org \
+#    && wget https://github.com/NVIDIA-AI-IOT/Deepstream-Dewarper-App/raw/main/plugin_libraries/jetson_bin/libnvdsgst_dewarper.so \
+#    && chmod 755 libnvdsgst_dewarper.so \
+#    && cd /opt/nvidia/deepstream/deepstream-6.0/sources/includes/ \
+#    && mv nvds_dewarper_meta.h nvds_dewarper_meta.h.org \
+#    && wget https://raw.githubusercontent.com/NVIDIA-AI-IOT/Deepstream-Dewarper-App/main/nvds_dewarper_meta.h
 
 
 ########################################
