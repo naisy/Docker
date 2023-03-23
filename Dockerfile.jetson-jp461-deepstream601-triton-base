@@ -494,7 +494,6 @@ RUN apt-get update \
       libgirepository1.0-dev \
       libcairo2-dev \
       mediainfo \
-      ssh \
     && apt autoremove -y \
     && rm -rf /var/lib/apt/lists/*
 
@@ -761,15 +760,41 @@ RUN . /virtualenv/$VENV/bin/activate \
       jupyter-packaging \
       cookiecutter \
       chardet==4.0.0 \
-    && jupyter labextension install @jupyter-widgets/jupyterlab-manager \
     && mkdir -p ~/github \
     && cd ~/github \
     && git clone -b jupyterlab-3 https://github.com/naisy/jupyter_clickable_image_widget \
     && cd jupyter_clickable_image_widget/js \
     && python -m jupyterlab.upgrade_extension --no-input . \
-    && npm install css-loader -D \
+    && npm install -D \
+      css-loader \
+      lodash \
+      @babel/core@ \
+      @babel/preset-env@ \
+      @jupyterlab/builder@ \
+      @jupyterlab/testutils@ \
+      @types/jest@ \
+      @typescript-eslint/eslint-plugin@ \
+      @typescript-eslint/parser@ \
+      eslint@ \
+      eslint-config-prettier@ \
+      eslint-plugin-prettier@ \
+      jest@ \
+      npm-run-all@ \
+      prettier@ \
+      rimraf@ \
+      stylelint@ \
+      stylelint-config-prettier@ \
+      stylelint-config-recommended@ \
+      stylelint-config-standard@ \
+      stylelint-prettier@ \
+      ts-jest@ \
+      typescript@ \
+      @jupyter-widgets/base \
+      @jupyter-widgets/controls@ \
+    && npm audit fix --force \
     && cd .. \
     && pip install -e . \
+    && jupyter labextension install @jupyter-widgets/jupyterlab-manager \
     && jupyter labextension install js \
     && jupyter-lab build \
     # cleaning
@@ -927,7 +952,6 @@ RUN . /virtualenv/$VENV/bin/activate \
       keras_applications==1.0.8 \
       keras==2.6 \
       gast==0.4.0 \
-      protobuf==3.19.4 \
       pybind11 \
       cython \
       pkgconfig
@@ -935,7 +959,10 @@ RUN . /virtualenv/$VENV/bin/activate \
 RUN . /virtualenv/$VENV/bin/activate \
     && pip install h5py==3.1.0
 
+# https://stackoverflow.com/questions/75583410/module-save-error-typeerror-this-dict-descriptor-does-not-support-dict
+# TypeError: this __dict__ descriptor does not support '_DictWrapper' objects
 RUN . /virtualenv/$VENV/bin/activate \
+    && pip install wrapt==1.14.1 \
     && pip install -U https://developer.download.nvidia.com/compute/redist/jp/v461/tensorflow/tensorflow-2.7.0+nv22.1-cp36-cp36m-linux_aarch64.whl
 
 
@@ -989,8 +1016,12 @@ RUN . /virtualenv/$VENV/bin/activate \
 # After onnx_graphsurgeon installed, protobuf will be broken in L4T r32.7.1. Thus --no-deps required.
 
 RUN . /virtualenv/$VENV/bin/activate \
+    && pip install wrapt==1.14.1 \
     && cd ~/github/TensorRT/samples/python/tensorflow_object_detection_api \
     && git clone https://github.com/tensorflow/models \
+    && cd models \
+    && git checkout fde2f60efa4080c0466c55ed873be0e20744a7d1 \
+    && cd .. \
     && cp -r models/research/object_detection . \
     && protoc object_detection/protos/*.proto --python_out=. \
     && sed -i 's/tile_node/#tile_node/g' create_onnx.py \
@@ -1176,7 +1207,7 @@ RUN ln -s /usr/bin/python3-config /virtualenv/$VENV/bin/python3-config
 
 RUN . /virtualenv/$VENV/bin/activate \
     && cd /opt/nvidia/deepstream/deepstream/sources/ \
-    && git clone -b v1.1.3 --recursive https://github.com/NVIDIA-AI-IOT/deepstream_python_apps \
+    && git clone -b v1.1.1 --recursive https://github.com/NVIDIA-AI-IOT/deepstream_python_apps \
     && cd deepstream_python_apps \
     && cd 3rdparty/gst-python/ \
     && export PYTHON=python3 \
@@ -1210,7 +1241,7 @@ RUN . /virtualenv/$VENV/bin/activate \
        gobject-introspection \
        libgirepository1.0-dev \
     && cd /opt/nvidia/deepstream/deepstream/sources/deepstream_python_apps/bindings/build \
-    && pip install pyds-1.1.3-py3-none-linux_aarch64.whl \
+    && pip install pyds-1.1.1-py3-none-linux_aarch64.whl \
     && sudo apt autoremove -y \
     && sudo rm -rf /var/lib/apt/lists/*
 
@@ -1249,7 +1280,7 @@ USER $USERNAME
 # https://github.com/dusty-nv/jetson-inference/blob/master/Dockerfile
 RUN . /virtualenv/$VENV/bin/activate \
     && cd ~/github \
-    && git clone --recursive https://github.com/dusty-nv/jetson-inference \
+    && git clone -b L4T-R32.7.1 --recursive https://github.com/dusty-nv/jetson-inference \
     && cd jetson-inference \
     && sed -i 's/nvcaffe_parser/nvparsers/g' CMakeLists.txt \
     && mkdir build \
@@ -1318,3 +1349,10 @@ RUN cd /opt/nvidia/deepstream/deepstream-6.0/sources/apps/sample_apps \
 RUN . /virtualenv/$VENV/bin/activate \
     && pip install -U \
       reportlab
+
+########################################
+# Multimedia API
+########################################
+# cp -r /usr/src/jetson_multimedia_api/ ./
+#COPY ./jetson_multimedia_api /usr/src/jetson_multimedia_api
+#RUN sudo chown -R jetson:jetson /usr/src/jetson_multimedia_api
