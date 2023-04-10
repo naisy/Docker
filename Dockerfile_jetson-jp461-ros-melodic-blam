@@ -1,0 +1,570 @@
+########################################
+# Docker build
+########################################
+#time sudo docker build -t naisy/jetson-jp461-ros-melodic-blam -f Dockerfile_jetson-jp461-ros-melodic-blam .
+
+#sudo service docker stop
+#cd /var/run
+#sudo mv docker /mnt/ssd250
+#sudo ln -s /mnt/ssd250 docker
+#sudo service docker start
+
+# https://github.com/NVIDIA/nvidia-docker/issues/1033
+# cmake fails unable to find cuda library while building an image
+#vi /etc/docker/daemon.json
+#{
+#    "runtimes": {
+#        "nvidia": {
+#            "path": "/usr/bin/nvidia-container-runtime",
+#            "runtimeArgs": []
+#        }
+#    },
+#    "default-runtime": "nvidia"
+#}
+#
+#service docker stop
+#service docker start
+
+
+# end of information
+
+
+########################################
+# Underlying OS repogitory
+########################################
+# container list
+FROM nvcr.io/nvidia/l4t-ml:r32.7.1-py3
+
+
+########################################
+# ENV
+########################################
+ARG DEBIAN_FRONTEND=noninteractive
+
+
+########################################
+# change the locale from POSIX to UTF-8
+########################################
+RUN locale-gen en_US en_US.UTF-8 && update-locale LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8
+ENV LANG=en_US.UTF-8
+
+
+
+########################################
+# apt fix
+########################################
+# Because somethime the repository is 404, use with --fix-missing option.
+RUN rm -rf /var/lib/apt/lists/* \
+    && apt-get --fix-missing update \
+    && apt-get install -y apt-utils \
+    && apt autoremove -y \
+    && rm -rf /var/lib/apt/lists/*
+
+
+########################################
+# add gpio group for spi devices
+########################################
+# Add gpio group debug
+# change input group id to 104
+# change netdev group id to 106
+# change i2c group id to 108
+# change rdma group id to 129
+# change debug group id to 995
+# ls -l /dev/
+# cat /etc/group
+RUN groupadd -f -r gpio \
+    && groupmod -g 129 rdma \
+    && groupmod -g 104 input \
+    && groupmod -g 106 netdev \
+    && groupmod -g 108 i2c \
+    && groupadd -f -r colord \
+    && groupmod -g 122 colord \
+    && groupadd -f -r debug \
+    && groupmod -g 995 debug \
+    && groupadd -f -r weston-launch \
+    && groupmod -g 996 weston-launch \
+    && groupadd -f -r crypto \
+    && groupmod -g 997 crypto \
+    && groupadd -f -r trusty \
+    && groupmod -g 998 trusty
+
+
+########################################
+# XAuthority
+########################################
+RUN apt-get update && apt-get install -y sudo xauth xterm && rm -rf /var/lib/apt/lists/*
+#Add new sudo user
+ARG USERNAME=jetson
+RUN useradd -m $USERNAME && \
+        echo "$USERNAME:$USERNAME" | chpasswd && \
+        usermod --shell /bin/bash $USERNAME && \
+        usermod -aG sudo,adm,cdrom,audio,dip,video,plugdev,i2c,gpio,dialout $USERNAME && \
+        echo "$USERNAME ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers.d/$USERNAME && \
+        chmod 0440 /etc/sudoers.d/$USERNAME && \
+        # Replace 1000 with your user/group id
+        usermod  --uid 1000 $USERNAME && \
+        groupmod --gid 1000 $USERNAME
+
+
+########################################
+# bash setting
+########################################
+# sed
+# escape characters \'$.*/[]^
+# 1. Write the regex between single quotes.
+# 2. \ -> \\
+# 3. ' -> '\''
+# 4. Put a backslash before $.*/[]^ and only those characters.
+
+
+####################
+# USER
+####################
+# before
+# #force_color_prompt=yes
+# after
+# force_color_prompt=yes
+
+# before
+#    PS1='${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
+# after
+#    PS1='${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\[\033[01;31m\]docker-\h\[\033[00m\]:\[\033[01;35m\]\w\[\033[00m\]\$ '
+
+# before
+# alias ls='ls --color=auto'
+# after
+# alias ls='ls -asiF --color=auto'
+
+RUN sed -i 's/#force_color_prompt=yes/force_color_prompt=yes/g' /home/$USERNAME/.bashrc \
+&& sed -i 's/PS1='\''\${debian_chroot:+(\$debian_chroot)}\\\[\\033\[01;32m\\\]\\u@\\h\\\[\\033\[00m\\\]:\\\[\\033\[01;34m\\\]\\w\\\[\\033\[00m\\\]\\\$ '\''/PS1='\''\${debian_chroot:+(\$debian_chroot)}\\\[\\033\[01;32m\\\]\\u@\\\[\\033\[01;31m\\\]docker-\\h\\\[\\033\[00m\\\]:\\\[\\033\[01;35m\\\]\\w\\\[\\033\[00m\\\]\\\$ '\''/g' /home/$USERNAME/.bashrc \
+&& sed -i 's/alias ls='\''ls --color=auto'\''/alias ls='\''ls -asiF --color=auto'\''/g' /home/$USERNAME/.bashrc \
+&& echo 'alias xterm='"'"'xterm -fa '"'"'Monospace'"'"' -fs 10 -fg white -bg black'"'"'\n' >> /home/$USERNAME/.bashrc \
+&& echo 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda-10.2/lib64:/usr/local/cuda-10.2/targets/aarch64-linux/lib:/usr/local/lib' >> /home/$USERNAME/.bashrc \
+&& echo 'export LANG=en_US.UTF-8' >> /home/$USERNAME/.bashrc \
+&& echo 'export NO_AT_BRIDGE=1' >> /home/$USERNAME/.bashrc \
+&& echo 'export PATH=$PATH:/usr/src/tensorrt/bin' >> /home/$USERNAME/.bashrc \
+&& echo 'cd' >> /home/$USERNAME/.bashrc \
+&& echo "complete -d cd" >> /home/$USERNAME/.bashrc
+
+####################
+# ROOT
+####################
+# before
+#    xterm-color) color_prompt=yes;;
+# after
+#    xterm-color|*-256color) color_prompt=yes;;
+
+# before
+#    PS1='${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
+# after
+#    PS1='${debian_chroot:+($debian_chroot)}\[\033[01;37m\]\u@\[\033[01;31m\]docker-\h\[\033[00m\]:\[\033[01;35m\]\w\[\033[00m\]\$ '
+
+# before
+# alias ls='ls --color=auto'
+# after
+# alias ls='ls -asiF --color=auto'
+
+RUN sed -i 's/xterm-color) color_prompt=yes;;/xterm-color|\*-256color) color_prompt=yes;;/g' /root/.bashrc \
+&& sed -i 's/#force_color_prompt=yes/force_color_prompt=yes/g' /root/.bashrc \
+&& sed -i 's/PS1='\''\${debian_chroot:+(\$debian_chroot)}\\\[\\033\[01;32m\\\]\\u@\\h\\\[\\033\[00m\\\]:\\\[\\033\[01;34m\\\]\\w\\\[\\033\[00m\\\]\\\$ '\''/PS1='\''\${debian_chroot:+(\$debian_chroot)}\\\[\\033\[01;37m\\\]\\u@\\\[\\033\[01;31m\\\]docker-\\h\\\[\\033\[00m\\\]:\\\[\\033\[01;35m\\\]\\w\\\[\\033\[00m\\\]\\\$ '\''/g' /root/.bashrc \
+&& sed -i 's/alias ls='\''ls --color=auto'\''/alias ls='\''ls -asiF --color=auto'\''/g' /root/.bashrc \
+&& echo 'alias xterm='"'"'xterm -fa '"'"'Monospace'"'"' -fs 10 -fg white -bg black'"'"'\n' >> /root/.bashrc \
+&& echo 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda-10.2/lib64:/usr/local/cuda-10.2/targets/aarch64-linux/lib:/usr/local/lib' >> /root/.bashrc \
+&& echo 'export LANG=en_US.UTF-8' >> /root/.bashrc \
+&& echo 'export NO_AT_BRIDGE=1' >> /root/.bashrc \
+&& echo 'export PATH=$PATH:/usr/src/tensorrt/bin' >> /root/.bashrc \
+&& echo "complete -d cd" >> /root/.bashrc
+
+
+#########################################
+# .dircolors
+########################################
+# end of line: \n\
+# ': '"'"'
+
+RUN echo '# dircolors -p > ~/.dircolors\n\
+# vi ~/.dircolors\n\
+# man dircolors\n\
+\n\
+# Configuration file for dircolors, a utility to help you set the\n\
+# LS_COLORS environment variable used by GNU ls with the --color option.\n\
+# Copyright (C) 1996-2016 Free Software Foundation, Inc.\n\
+# Copying and distribution of this file, with or without modification,\n\
+# are permitted provided the copyright notice and this notice are preserved.\n\
+# The keywords COLOR, OPTIONS, and EIGHTBIT (honored by the\n\
+# slackware version of dircolors) are recognized but ignored.\n\
+# Below are TERM entries, which can be a glob patterns, to match\n\
+# against the TERM environment variable to determine if it is colorizable.\n\
+TERM Eterm\n\
+TERM ansi\n\
+TERM color-xterm\n\
+TERM con[0-9]*x[0-9]*\n\
+TERM cons25\n\
+TERM console\n\
+TERM cygwin\n\
+TERM dtterm\n\
+TERM eterm-color\n\
+TERM gnome\n\
+TERM gnome-256color\n\
+TERM hurd\n\
+TERM jfbterm\n\
+TERM konsole\n\
+TERM kterm\n\
+TERM linux\n\
+TERM linux-c\n\
+TERM mach-color\n\
+TERM mach-gnu-color\n\
+TERM mlterm\n\
+TERM putty\n\
+TERM putty-256color\n\
+TERM rxvt*\n\
+TERM screen*\n\
+TERM st\n\
+TERM st-256color\n\
+TERM terminator\n\
+TERM tmux*\n\
+TERM vt100\n\
+TERM xterm*\n\
+# Below are the color init strings for the basic file types. A color init\n\
+# string consists of one or more of the following numeric codes:\n\
+# Attribute codes:\n\
+# 00=none 01=bold 04=underscore 05=blink 07=reverse 08=concealed\n\
+# Text color codes:\n\
+# 30=black 31=red 32=green 33=yellow 34=blue 35=magenta 36=cyan 37=white\n\
+# Background color codes:\n\
+# 40=black 41=red 42=green 43=yellow 44=blue 45=magenta 46=cyan 47=white\n\
+#NORMAL 00 # no color code at all\n\
+#FILE 00 # regular file: use no color at all\n\
+RESET 0 # reset to "normal" color\n\
+DIR 01;35 # directory\n\
+LINK 01;36 # symbolic link. (If you set this to '"'"'target'"'"' instead of a\n\
+ # numerical value, the color is as for the file pointed to.)\n\
+MULTIHARDLINK 00 # regular file with more than one link\n\
+FIFO 40;99 # pipe\n\
+SOCK 01;32 # socket\n\
+DOOR 01;32 # door\n\
+BLK 40;99;01 # block device driver\n\
+CHR 40;99;01 # character device driver\n\
+ORPHAN 40;31;01 # symlink to nonexistent file, or non-stat'"'"'able file ...\n\
+MISSING 00 # ... and the files they point to\n\
+SETUID 37;41 # file that is setuid (u+s)\n\
+SETGID 30;43 # file that is setgid (g+s)\n\
+CAPABILITY 30;41 # file with capability\n\
+STICKY_OTHER_WRITABLE 30;42 # dir that is sticky and other-writable (+t,o+w)\n\
+OTHER_WRITABLE 35;42 # dir that is other-writable (o+w) and not sticky\n\
+STICKY 37;44 # dir with the sticky bit set (+t) and not other-writable\n\
+# This is for files with execute permission:\n\
+EXEC 01;31\n\
+# List any file extensions like '"'"'.gz'"'"' or '"'"'.tar'"'"' that you would like ls\n\
+# to colorize below. Put the extension, a space, and the color init string.\n\
+# (and any comments you want to add after a '"'"'#'"'"')\n\
+# If you use DOS-style suffixes, you may want to uncomment the following:\n\
+#.cmd 01;31 # executables (bright green)\n\
+#.exe 01;31\n\
+#.com 01;31\n\
+#.btm 01;31\n\
+#.bat 01;31\n\
+# Or if you want to colorize scripts even if they do not have the\n\
+# executable bit actually set.\n\
+#.sh 01;31\n\
+#.csh 01;31\n\
+ # archives or compressed (bright red)\n\
+.tar 01;33\n\
+.tgz 01;33\n\
+.arc 01;33\n\
+.arj 01;33\n\
+.taz 01;33\n\
+.lha 01;33\n\
+.lz4 01;33\n\
+.lzh 01;33\n\
+.lzma 01;33\n\
+.tlz 01;33\n\
+.txz 01;33\n\
+.tzo 01;33\n\
+.t7z 01;33\n\
+.zip 01;33\n\
+.z 01;33\n\
+.Z 01;33\n\
+.dz 01;33\n\
+.gz 01;33\n\
+.lrz 01;33\n\
+.lz 01;33\n\
+.lzo 01;33\n\
+.xz 01;33\n\
+.bz2 01;33\n\
+.bz 01;33\n\
+.tbz 01;33\n\
+.tbz2 01;33\n\
+.tz 01;33\n\
+.deb 01;33\n\
+.rpm 01;33\n\
+.jar 01;33\n\
+.war 01;33\n\
+.ear 01;33\n\
+.sar 01;33\n\
+.rar 01;33\n\
+.alz 01;33\n\
+.ace 01;33\n\
+.zoo 01;33\n\
+.cpio 01;33\n\
+.7z 01;33\n\
+.rz 01;33\n\
+.cab 01;33\n\
+# image formats\n\
+.jpg 01;32\n\
+.jpeg 01;32\n\
+.gif 01;32\n\
+.bmp 01;32\n\
+.pbm 01;32\n\
+.pgm 01;32\n\
+.ppm 01;32\n\
+.tga 01;32\n\
+.xbm 01;32\n\
+.xpm 01;32\n\
+.tif 01;32\n\
+.tiff 01;32\n\
+.png 01;32\n\
+.svg 01;32\n\
+.svgz 01;32\n\
+.mng 01;32\n\
+.pcx 01;32\n\
+.mov 01;32\n\
+.mpg 01;32\n\
+.mpeg 01;32\n\
+.m2v 01;32\n\
+.mkv 01;32\n\
+.webm 01;32\n\
+.ogm 01;32\n\
+.mp4 01;32\n\
+.m4v 01;32\n\
+.mp4v 01;32\n\
+.vob 01;32\n\
+.qt 01;32\n\
+.nuv 01;32\n\
+.wmv 01;32\n\
+.asf 01;32\n\
+.rm 01;32\n\
+.rmvb 01;32\n\
+.flc 01;32\n\
+.avi 01;32\n\
+.fli 01;32\n\
+.flv 01;32\n\
+.gl 01;32\n\
+.dl 01;32\n\
+.xcf 01;32\n\
+.xwd 01;32\n\
+.yuv 01;32\n\
+.cgm 01;32\n\
+.emf 01;32\n\
+# http://wiki.xiph.org/index.php/MIME_Types_and_File_Extensions\n\
+.axv 01;32\n\
+.anx 01;32\n\
+.ogv 01;32\n\
+.ogx 01;32\n\
+# audio formats\n\
+.aac 00;36\n\
+.au 00;36\n\
+.flac 00;36\n\
+.m4a 00;36\n\
+.mid 00;36\n\
+.midi 00;36\n\
+.mka 00;36\n\
+.mp3 00;36\n\
+.mpc 00;36\n\
+.ogg 00;36\n\
+.ra 00;36\n\
+.wav 00;36\n\
+# http://wiki.xiph.org/index.php/MIME_Types_and_File_Extensions\n\
+.axa 00;36\n\
+.oga 00;36\n\
+.opus 00;36\n\
+.spx 00;36\n\
+.xspf 00;36\n'\
+> /root/.dircolors \
+  && cp /root/.dircolors /home/$USERNAME/.dircolors \
+  && chown $USERNAME:$USERNAME /home/$USERNAME/.dircolors
+
+
+ENV LANG=en_US.UTF-8
+#ENV CC=clang
+#ENV CXX=clang++
+
+
+########################################
+# fix ldconfig path
+########################################
+RUN echo '/usr/local/cuda-10.2/targets/aarch64-linux/lib' > /etc/ld.so.conf.d/nvidia.conf \
+    && echo '/etc/ld.so.conf.d/aarch64-linux-gnu.conf\n\
+# Multiarch support\n\
+/lib/aarch64-linux-gnu\n\
+/usr/lib/aarch64-linux-gnu\n'\
+> /etc/ld.so.conf.d/aarch64-linux-gnu.conf \
+  ldconfig
+
+
+########################################
+# Default Command
+########################################
+#CMD bash -c "/usr/bin/xterm -fa 'Monospace' -fs 10"
+CMD bash -c "/bin/bash"
+
+
+### END GUI ###
+
+
+########################################
+# Packages
+########################################
+RUN apt-get update \
+    && apt-get -y install \
+      vim \
+      less \
+      htop \
+      unzip \
+      locate \
+      git \
+      curl \
+      wget \
+      arp-scan \
+      v4l-utils \
+      gnupg2 \
+      lsb-release \
+      net-tools \
+      colortest \
+    && apt autoremove -y \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN apt-get update \
+    && apt-get -y install \
+      dialog \
+      libhdf5-serial-dev \
+      hdf5-tools \
+      libhdf5-dev \
+      zlib1g-dev \
+      zip \
+      libjpeg8-dev \
+      liblapack-dev \
+      libblas-dev \
+      libgeos-dev \
+      gfortran \
+      python3-dev \
+      python3-pip \
+      python3-tk \
+      python3-gi \
+      python3-gst-1.0 \
+      libxslt1-dev \
+      libxml2-dev \
+      libffi-dev \
+      libcurl4-openssl-dev \
+      libssl-dev \
+      libpng-dev \
+      libopenblas-dev \
+      openmpi-doc \
+      openmpi-bin \
+      libopenmpi-dev \
+      libjpeg-dev \
+      libpython3-dev \
+      libavcodec-dev \
+      libavformat-dev \
+      libswscale-dev \
+      pkg-config \
+      gcc-8 \
+      g++-8 \
+      libprotobuf-dev \
+      protobuf-compiler \
+      ninja-build \
+    && apt autoremove -y \
+    && rm -rf /var/lib/apt/lists/*
+
+# set default gcc version to 7
+RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-7 7 \
+    && update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-7 7 \
+    && update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-8 8 \
+    && update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-8 8 \
+    && update-alternatives --set gcc /usr/bin/gcc-7 \
+    && update-alternatives --set g++ /usr/bin/g++-7
+
+
+########################################
+# pip
+########################################
+RUN apt-get update \
+    && apt-get install -y \
+      libsdl2-dev \
+      libsdl2-image-dev \
+      libsdl2-mixer-dev \
+      libsdl2-net-dev \
+      libsdl2-ttf-dev \
+      libsdl2-gfx-dev \
+      libfreetype6-dev \
+      libportmidi-dev \
+    && python3 -m pip install -U pip \
+    && pip3 install -U setuptools \
+    && pip3 install -U wheel \
+    && pip3 install -U pygame \
+    && pip3 install -U smbus \
+    && pip3 install -U Jetson.GPIO \
+    && pip3 install -U pylint \
+    && pip3 install -U colord \
+    && pip3 install -U onnx \
+    && pip3 install -U tf2onnx \
+    && pip3 install -U pillow \
+    && pip3 install -U netron \
+    && apt autoremove -y \
+    && rm -rf /var/lib/apt/lists/*
+
+
+########################################
+# ROS melodic
+########################################
+ENV ROS_DISTRO=melodic
+ENV ROS_ROOT=/opt/ros/${ROS_DISTRO}
+
+RUN echo "export ROS_ROOT=$ROS_ROOT" >> /root/.bashrc \
+    && echo 'source ${ROS_ROOT}/setup.bash' >> /root/.bashrc \
+    && echo "export ROS_ROOT=$ROS_ROOT" >> /home/$USERNAME/.bashrc \
+    && echo 'source ${ROS_ROOT}/setup.bash' >> /home/$USERNAME/.bashrc
+
+
+RUN sh -c 'echo "deb http://packages.ros.org/ros/ubuntu $(lsb_release -sc) main" > /etc/apt/sources.list.d/ros-latest.list' \
+    && curl -s https://raw.githubusercontent.com/ros/rosdistro/master/ros.asc | apt-key add -
+
+# uninstall opencv-dev 4.5, install libopencv-dev 3.2
+RUN apt-get update \
+    && apt-get remove -y opencv-dev opencv-main \
+    && apt-get install -y ros-melodic-desktop-full \
+    && apt-get install -y ros-melodic-velodyne \
+    && apt-get install -y python-rosdep python-rosinstall python-rosinstall-generator python-wstool build-essential python-rosdep \
+    && apt autoremove -y \
+    && rm -rf /var/lib/apt/lists/*
+
+########################################
+# GTSAM
+########################################
+USER jetson
+RUN sudo apt-get update \
+    && sudo apt-get install -y libboost-all-dev \
+    && sudo apt-get install -y libtbb-dev \
+    && mkdir ~/github \
+    && cd ~/github \
+    && git clone -b 4.0.3 https://github.com/borglab/gtsam \
+    && cd gtsam \
+    && mkdir build \
+    && cd build \
+    && cmake .. \
+    && sudo make install \
+    && sudo apt autoremove -y \
+    && sudo rm -rf /var/lib/apt/lists/*
+
+RUN sudo rosdep init \
+    && rosdep update
+
+RUN cd ~/github \
+    && git clone https://github.com/naisy/blam \
+    && cd blam/ \
+    && bash -c 'source ${ROS_ROOT}/setup.bash && ./build.sh'
+
+
+# finish
+########################################
+
