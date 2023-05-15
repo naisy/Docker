@@ -4,7 +4,7 @@
 #time sudo docker build -t naisy/jetson-jp461-ros-melodic-blam -f Dockerfile_jetson-jp461-ros-melodic-blam .
 
 #sudo service docker stop
-#cd /var/run
+#cd /var/lib
 #sudo mv docker /mnt/ssd250
 #sudo ln -s /mnt/ssd250 docker
 #sudo service docker start
