@@ -1,5 +1,4 @@
 #!/bin/bash
-
 ########################################
 # Rerun the script with root
 ########################################
@@ -21,7 +20,7 @@ DOCKER_USER_XAUTH=$DOCKER_USER_HOME/$XAUTH_FILE
 DOCKER_MOUNT_PATH=$DOCKER_USER_HOME/data
 
 ########################################
-# make .Xauthority
+# DISPLAY
 ########################################
 DISPLAY=`echo $DISPLAY`
 if [ -z $DISPLAY ]; then
@@ -32,6 +31,9 @@ if [ -z $DISPLAY ]; then
     DISPLAY=:0
 fi
 
+########################################
+# make .Xauthority
+########################################
 if [ ! -f $HOST_USER_HOME/$XAUTH_FILE ]; then
     touch $HOST_USER_HOME/$XAUTH_FILE
     chown $HOST_USER:$HOST_USER_GROUP $HOST_USER_HOME/$XAUTH_FILE
@@ -47,7 +49,6 @@ if [ ! -d "$HOST_MOUNT_PATH" ]; then
     mkdir $HOST_MOUNT_PATH
     chown $HOST_USER:$HOST_USER_GROUP $HOST_MOUNT_PATH
 fi
-
 
 ########################################
 # docker image
