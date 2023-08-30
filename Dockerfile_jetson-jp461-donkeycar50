@@ -50,8 +50,6 @@ ARG VENV=python3
 # sudo chown root.gpio /dev/gpiochip0
 # sudo chmod 660 /dev/gpiochip0
 RUN . /virtualenv/$VENV/bin/activate \
-    && pip install --no-deps \
-      qudida==0.0.4 \
     && cd ~/github \
     && git clone https://github.com/autorope/donkeycar \
     && cd donkeycar \

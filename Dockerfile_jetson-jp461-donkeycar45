@@ -48,8 +48,6 @@ ARG VENV=python3
 # DonkeyCar 45
 ########################################
 RUN . /virtualenv/$VENV/bin/activate \
-    && pip install --no-deps \
-      qudida==0.0.4 \
     && cd ~/github \
     && git clone -b release_4_5 https://github.com/autorope/donkeycar \
     && cd donkeycar \
@@ -73,3 +71,4 @@ RUN sudo sed -i 's/docker-/docker-donkeycar45-/g' /root/.bashrc \
 
 
 CMD . /virtualenv/python3/bin/activate && exec bash -c "jupyter-lab --ip=0.0.0.0 --no-browser --ServerApp.root_dir=/ --LabApp.default_url=/lab?file-browser-path=$HOME/data/Notebooks"
+

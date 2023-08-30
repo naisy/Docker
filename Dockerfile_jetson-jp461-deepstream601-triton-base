@@ -442,6 +442,7 @@ RUN apt-get update \
       colortest \
       curl \
       dialog \
+      ffmpeg \
       g++-8 \
       gcc-8 \
       gfortran \
