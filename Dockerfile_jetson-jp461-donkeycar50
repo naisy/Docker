@@ -1,7 +1,7 @@
 ########################################
 # Docker build
 ########################################
-#time sudo docker build -t naisy/jetson-jp461-donkeycar -f Dockerfile.jetson-jp461-donkeycar .
+#time sudo docker build -t naisy/jetson-jp461-donkeycar50 -f Dockerfile_jetson-jp461-donkeycar50 .
 
 
 ########################################
@@ -45,18 +45,21 @@ ARG VENV=python3
 
 
 ########################################
-# pip package
+# DonkeyCar 50
 ########################################
-USER $USERNAME
+# sudo chown root.gpio /dev/gpiochip0
+# sudo chmod 660 /dev/gpiochip0
 RUN . /virtualenv/$VENV/bin/activate \
-    && pip install pyfiglet \
-    && pip install prettytable
-
-
-RUN . /virtualenv/$VENV/bin/activate \
+    && pip install --no-deps \
+      qudida==0.0.4 \
     && cd ~/github \
-    && git clone -b main https://github.com/autorope/donkeycar \
+    && git clone https://github.com/autorope/donkeycar \
     && cd donkeycar \
+    && sed -i '/imgaug/d' setup.py \
+    && sed -i '/pillow/d' setup.py \
+    && sed -i '/numpy/d' setup.py \
+    && sed -i '/albumentations/d' setup.py \
+    && sed -i 's/if sys.version_info.major < 3 or sys.version_info.minor < 8:/if sys.version_info.major < 3 or sys.version_info.minor < 6:/g' ~/github/donkeycar/donkeycar/__init__.py \
     && pip install -e .[nano]
 
 RUN . /virtualenv/$VENV/bin/activate \
@@ -64,11 +67,13 @@ RUN . /virtualenv/$VENV/bin/activate \
     && git clone https://github.com/tawnkramer/gym-donkeycar \
     && cd gym-donkeycar \
     && sed -i 's/python_requires=">=3\.7"/python_requires=">=3.6"/g' setup.py \
+    && sed -i 's|^requirements = \["gym==0.21", "numpy", "pillow"\]|requirements = []|g' setup.py \
     && pip install -e .
 
 
-RUN sudo sed -i 's/docker-/docker-donkeycar-/g' /root/.bashrc \
-    && sed -i 's/docker-/docker-donkeycar-/g' /home/$USERNAME/.bashrc
+RUN sudo sed -i 's/docker-/docker-donkeycar50-/g' /root/.bashrc \
+    && sed -i 's/docker-/docker-donkeycar50-/g' /home/$USERNAME/.bashrc
 
 
 CMD . /virtualenv/python3/bin/activate && exec bash -c "jupyter-lab --ip=0.0.0.0 --no-browser --ServerApp.root_dir=/ --LabApp.default_url=/lab?file-browser-path=$HOME/data/Notebooks"
+

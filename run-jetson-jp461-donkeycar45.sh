@@ -7,7 +7,6 @@ if [ "$EUID" -ne 0 ]; then
   exit            # exit this user script
 fi
 
-XSOCK=/tmp/.X11-unix
 XAUTH_FILE=.Xauthority
 HOST_USER=$(getent passwd 1000 | cut -d: -f1)
 HOST_USER_GROUP=$(getent group 1000 | cut -d: -f1)
@@ -18,7 +17,6 @@ DOCKER_USER=jetson
 DOCKER_USER_HOME=/home/$DOCKER_USER
 DOCKER_USER_XAUTH=$DOCKER_USER_HOME/$XAUTH_FILE
 DOCKER_MOUNT_PATH=$DOCKER_USER_HOME/data
-CSI_CAMERA=/tmp/argus_socket
 
 ########################################
 # DISPLAY
@@ -62,17 +60,17 @@ fi
 ########################################
 # docker image
 ########################################
-IMG=naisy/jetson-jp461-donkeycar
+IMG=naisy/jetson-jp461-donkeycar45
+PORT=8890
 
 docker run \
     --runtime=nvidia \
     --restart always \
     -itd \
-    --mount type=bind,source=$XSOCK,target=$XSOCK \
     --mount type=bind,source=$HOST_USER_XAUTH,target=$DOCKER_USER_XAUTH \
     --mount type=bind,source=$HOST_MOUNT_PATH,target=$DOCKER_MOUNT_PATH \
     -e DISPLAY=$DISPLAY \
-    -e LD_PRELOAD=/usr/lib/aarch64-linux-gnu/libgomp.so.1 \
+    -e LD_PRELOAD=/usr/lib/aarch64-linux-gnu/libgomp.so.1:/virtualenv/python3/lib/python3.6/site-packages/scikit_learn.libs/libgomp-d22c30c5.so.1.0.0 \
     -e OPENBLAS_CORETYPE=ARMV8 \
     -e QT_GRAPHICSSYSTEM=native \
     -e QT_X11_NO_MITSHM=1 \
@@ -81,9 +79,10 @@ docker run \
     -v /var/run/dbus/system_bus_socket:/var/run/dbus/system_bus_socket:ro \
     -v /etc/localtime:/etc/localtime:ro \
     -v /usr/lib/aarch64-linux-gnu/gstreamer-1.0/libgstpango.so:/usr/lib/aarch64-linux-gnu/gstreamer-1.0/libgstpango.so:ro \
-    --mount type=bind,source=$CSI_CAMERA,target=$CSI_CAMERA \
     -v /dev/:/dev/ \
+    -v /tmp/:/tmp/ \
     -u $DOCKER_USER \
     --privileged \
     --network=host \
-$IMG
+$IMG \
+bash -c "source /virtualenv/python3/bin/activate && jupyter lab --ip=0.0.0.0 --port=$PORT --no-browser --ServerApp.root_dir=/ --LabApp.default_url=/lab?file-browser-path=$HOST_USER_HOME"

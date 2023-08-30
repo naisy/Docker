@@ -60,8 +60,8 @@ fi
 ########################################
 # docker image
 ########################################
-IMG=naisy/jetson-jp461-donkeycar-overdrive3
-PORT=8888
+IMG=naisy/jetson-jp461-jetracer-ai86
+PORT=8892
 
 docker run \
     --runtime=nvidia \

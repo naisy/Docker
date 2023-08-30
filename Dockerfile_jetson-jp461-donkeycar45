@@ -1,7 +1,7 @@
 ########################################
 # Docker build
 ########################################
-#time sudo docker build -t naisy/jetson-jp461-donkeycar-overdrive4 -f Dockerfile.jetson-jp461-donkeycar-overdrive4 .
+#time sudo docker build -t naisy/jetson-jp461-donkeycar45 -f Dockerfile_jetson-jp461-donkeycar45 .
 
 
 ########################################
@@ -45,21 +45,16 @@ ARG VENV=python3
 
 
 ########################################
-# pip package
+# DonkeyCar 45
 ########################################
-USER $USERNAME
 RUN . /virtualenv/$VENV/bin/activate \
-    && pip install pyfiglet \
-    && pip install prettytable
-
-
-RUN . /virtualenv/$VENV/bin/activate \
-    && pip install tf-keras-vis==v0.6.2 \
     && cd ~/github \
-    && git clone -b overdrive4 https://github.com/naisy/donkeycar \
-    && git clone https://github.com/naisy/overdrive \
-    && git clone https://github.com/naisy/donkeycar_tools \
+    && git clone -b release_4_5 https://github.com/autorope/donkeycar \
     && cd donkeycar \
+    && sed -i '/imgaug/d' setup.py \
+    && sed -i '/pillow/d' setup.py \
+    && sed -i '/numpy/d' setup.py \
+    && sed -i '/albumentations/d' setup.py \
     && pip install -e .[nano]
 
 RUN . /virtualenv/$VENV/bin/activate \
@@ -67,11 +62,13 @@ RUN . /virtualenv/$VENV/bin/activate \
     && git clone https://github.com/tawnkramer/gym-donkeycar \
     && cd gym-donkeycar \
     && sed -i 's/python_requires=">=3\.7"/python_requires=">=3.6"/g' setup.py \
+    && sed -i 's|^requirements = \["gym==0.21", "numpy", "pillow"\]|requirements = []|g' setup.py \
     && pip install -e .
 
 
-RUN sudo sed -i 's/docker-/docker-donkeycar-overdrive4-/g' /root/.bashrc \
-    && sed -i 's/docker-/docker-donkeycar-overdrive4-/g' /home/$USERNAME/.bashrc
+RUN sudo sed -i 's/docker-/docker-donkeycar45-/g' /root/.bashrc \
+    && sed -i 's/docker-/docker-donkeycar45-/g' /home/$USERNAME/.bashrc
 
 
 CMD . /virtualenv/python3/bin/activate && exec bash -c "jupyter-lab --ip=0.0.0.0 --no-browser --ServerApp.root_dir=/ --LabApp.default_url=/lab?file-browser-path=$HOME/data/Notebooks"
+

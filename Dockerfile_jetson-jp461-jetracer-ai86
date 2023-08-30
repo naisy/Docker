@@ -1,7 +1,7 @@
 ########################################
 # Docker build
 ########################################
-#time sudo docker build -t naisy/jetson-jp461-donkeycar-overdrive3 -f Dockerfile.jetson-jp461-donkeycar-overdrive3 .
+#time sudo docker build -t naisy/jetson-jp461-jetracer-ai86 -f Dockerfile_jetson-jp461-jetracer-ai86 .
 
 
 ########################################
@@ -45,45 +45,30 @@ ARG VENV=python3
 
 
 ########################################
-# pip package
-########################################
-USER $USERNAME
-RUN . /virtualenv/$VENV/bin/activate \
-    && pip install pyfiglet \
-    && pip install prettytable
-
-
-########################################
-# Tensorflow 1.15.5
+# JetRacer AI86
 ########################################
 RUN . /virtualenv/$VENV/bin/activate \
-    && pip install --no-deps \
-      gast==0.3.3 \
-      numpy==1.18.5 \
-      h5py==2.10.0 \
-      astor==0.8.1 \
-      "tensorboard<1.16.0,>=1.15.0" \
-      tensorflow-estimator==1.15.1 \
-    && pip install https://developer.download.nvidia.com/compute/redist/jp/v461/tensorflow/tensorflow-1.15.5+nv22.1-cp36-cp36m-linux_aarch64.whl
-
-
-RUN . /virtualenv/$VENV/bin/activate \
+    ### FaBo PCA9685
     && cd ~/github \
-    && git clone -b overdrive3 https://github.com/naisy/donkeycar \
-    && git clone https://github.com/naisy/overdrive \
-    && git clone https://github.com/naisy/donkeycar_tools \
-    && cd donkeycar \
-    && pip install -e .[nano]
-
-RUN . /virtualenv/$VENV/bin/activate \
+    && git clone -b jupyterlab https://github.com/FaBoPlatform/FaBoPWM-PCA9685-Python \
+    && cd FaBoPWM-PCA9685-Python \
+    && pip3 install . \
+    ### JetRacer
     && cd ~/github \
-    && git clone https://github.com/tawnkramer/gym-donkeycar \
-    && cd gym-donkeycar \
-    && sed -i 's/python_requires=">=3\.7"/python_requires=">=3.6"/g' setup.py \
+    && git clone https://github.com/FaBoPlatform/jetracer \
+    && cd jetracer \
+    && pip install -e . \
+    && cp -r notebooks ~/notebooks \
+    ### JetCam
+    && cd ~/github \
+    && git clone https://github.com/NVIDIA-AI-IOT/jetcam \
+    && cd jetcam \
     && pip install -e .
 
 
-RUN sudo sed -i 's/docker-/docker-donkeycar-overdrive3-/g' /root/.bashrc \
-    && sed -i 's/docker-/docker-donkeycar-overdrive3-/g' /home/$USERNAME/.bashrc
+RUN sudo sed -i 's/docker-/docker-jetracer-ai86-/g' /root/.bashrc \
+    && sed -i 's/docker-/docker-jetracer-ai86-/g' /home/$USERNAME/.bashrc
+
 
 CMD . /virtualenv/python3/bin/activate && exec bash -c "jupyter-lab --ip=0.0.0.0 --no-browser --ServerApp.root_dir=/ --LabApp.default_url=/lab?file-browser-path=$HOME/data/Notebooks"
+

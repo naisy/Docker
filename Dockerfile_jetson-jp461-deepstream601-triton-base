@@ -1,7 +1,7 @@
 ########################################
 # Docker build
 ########################################
-#time sudo docker build -t naisy/jetson-jp461-deepstream601-triton-base -f Dockerfile.jetson-jp461-deepstream601-triton-base .
+#time sudo docker build -t naisy/jetson-jp461-deepstream601-triton-base -f Dockerfile_jetson-jp461-deepstream601-triton-base .
 
 
 ########################################
@@ -428,72 +428,97 @@ CMD bash -c "/bin/bash"
 
 ### END GUI ###
 
+RUN chown -R $USERNAME:$USERNAME /opt/nvidia/deepstream/deepstream/
+
 ########################################
 # Packages
 ########################################
 RUN apt-get update \
     && apt-get install -y \
-      vim \
-      less \
-      htop \
-      unzip \
-      locate \
-      git \
-      curl \
-      wget \
+      apt-transport-https \
       arp-scan \
-      v4l-utils \
-      gnupg2 \
-      lsb-release \
-      net-tools \
+      automake \
+      ca-certificates \
       colortest \
-      ssh \
-      iputils-ping \
-    && apt autoremove -y \
-    && rm -rf /var/lib/apt/lists/*
-
-RUN apt-get update \
-    && apt-get install -y \
+      curl \
       dialog \
-      libhdf5-serial-dev \
-      hdf5-tools \
-      libhdf5-dev \
-      zlib1g-dev \
-      zip \
-      libjpeg8-dev \
-      liblapack-dev \
-      libblas-dev \
-      libgeos-dev \
+      g++-8 \
+      gcc-8 \
       gfortran \
-      python3-dev \
-      python3-pip \
-      python3-tk \
-      python3-gi \
-      python3-gst-1.0 \
-      libxslt1-dev \
-      libxml2-dev \
-      libffi-dev \
-      libcurl4-openssl-dev \
-      libssl-dev \
-      libpng-dev \
-      libopenblas-dev \
-      openmpi-doc \
-      openmpi-bin \
-      libopenmpi-dev \
-      libjpeg-dev \
-      libpython3-dev \
+      git \
+      gnupg2 \
+      graphviz \
+      gstreamer1.0-clutter-3.0 \
+      gstreamer1.0-gl \
+      gstreamer1.0-gtk3 \
+      gstreamer1.0-pulseaudio \
+      hdf5-tools \
+      htop \
+      iputils-ping \
+      less \
       libavcodec-dev \
       libavformat-dev \
-      libswscale-dev \
-      pkg-config \
-      gcc-8 \
-      g++-8 \
-      libprotobuf-dev \
-      protobuf-compiler \
-      ninja-build \
-      libgirepository1.0-dev \
+      libblas-dev \
       libcairo2-dev \
+      libcanberra-gtk-module \
+      libcurl4-openssl-dev \
+      libffi-dev \
+      libfreetype6-dev \
+      libgeos-dev \
+      libgirepository1.0-dev \
+      libhdf5-dev \
+      libhdf5-serial-dev \
+      libjpeg8-dev \
+      libjpeg-dev \
+      liblapack-dev \
+      libmosquitto-dev \
+      libopenblas-dev \
+      libopenmpi-dev \
+      libpng-dev \
+      libportmidi-dev \
+      libprotobuf-dev \
+      libpython3-dev \
+      libsdl2-dev \
+      libsdl2-gfx-dev \
+      libsdl2-image-dev \
+      libsdl2-mixer-dev \
+      libsdl2-net-dev \
+      libsdl2-ttf-dev \
+      libssl-dev \
+      libswscale-dev \
+      libxml2-dev \
+      libxslt1-dev \
+      locate \
+      lsb-release \
       mediainfo \
+      mosquitto \
+      mosquitto-clients \
+      mosquitto-dev \
+      net-tools \
+      ninja-build \
+      openmpi-bin \
+      openmpi-doc \
+      pkg-config \
+      protobuf-compiler \
+      python3-dev \
+      python3-gi \
+      python3-gst-1.0 \
+      python3-pip \
+      python3-tk \
+      python-gi-cairo \
+      python-gi-dev \
+      python-pydot \
+      python-pydot-ng \
+      samba-common-bin \
+      ssh \
+      unzip \
+      v4l-utils \
+      vim \
+      wget \
+      xclip \
+      xsel \
+      zip \
+      zlib1g-dev \
     && apt autoremove -y \
     && rm -rf /var/lib/apt/lists/*
 
@@ -562,7 +587,7 @@ RUN apt-get purge -y '*opencv*' || echo "previous OpenCV installation not found"
 
 
 ########################################
-# CMake 3.22.5
+# CMake 3.24.4
 ########################################
 USER $USERNAME
 RUN mkdir -p ~/github \
@@ -570,7 +595,7 @@ RUN mkdir -p ~/github \
     && sudo apt-get update \
     && sudo apt-get remove -y \
       cmake \
-    && git clone https://github.com/Kitware/CMake.git --depth 1 -b v3.22.5 \
+    && git clone https://github.com/Kitware/CMake.git --depth 1 -b v3.24.4 \
     && cd CMake \
     && ./bootstrap --system-curl \
     && make -j$(nproc) \
@@ -586,25 +611,9 @@ ARG OPENBLAS_CORETYPE=ARMV8
 ########################################
 # pip
 ########################################
-USER root
-RUN apt-get update \
-    && apt-get install -y \
-      libsdl2-dev \
-      libsdl2-image-dev \
-      libsdl2-mixer-dev \
-      libsdl2-net-dev \
-      libsdl2-ttf-dev \
-      libsdl2-gfx-dev \
-      libfreetype6-dev \
-      libportmidi-dev \
-    && apt autoremove -y \
-    && rm -rf /var/lib/apt/lists/*
-
-
 ARG VENV=python3
-RUN mkdir /virtualenv \
-    && chown $USERNAME:$USERNAME /virtualenv
-USER $USERNAME
+RUN sudo mkdir /virtualenv \
+    && sudo chown $USERNAME:$USERNAME /virtualenv
 
 
 # python3 -m virtualenv -p python3 /virtualenv/$VENV --system-site-packages
@@ -641,61 +650,312 @@ RUN sudo ln -s /usr/lib/python3.6/dist-packages/cv2 /virtualenv/$VENV/lib/python
 # ImportError: The _imagingft C module is not installed
 # freetypeを利用できないpillowがある。8.4.0を指定すると回避できる。
 ##############################
+# matplotlibはgcc-7でビルドする
+
+#      setuptools==59.6.0 \
 RUN . /virtualenv/$VENV/bin/activate \
-    && pip install -U \
-      pip \
-      testresources \
-      launchpadlib \
-      setuptools \
-      wheel \
-      packaging \
-      Cython \
+    && pip install \
+      beautifulsoup4==4.12.0 \
+      Cython==0.29.33 \
+      certifi==2022.12.7 \
+      cffi==1.15.1 \
+      charset-normalizer==2.0.12 \
+      cryptography==40.0.2 \
+      distro==1.8.0 \
+      filelock==3.4.1 \
+      gdown==4.6.4 \
+      httplib2==0.22.0 \
+      idna==3.4 \
+      importlib-metadata==4.8.3 \
+      importlib-resources==5.4.0 \
+      jeepney==0.7.1 \
+      keyring==23.4.1 \
+      launchpadlib==1.10.16 \
+      lazr.restfulclient==0.14.5 \
+      lazr.uri==1.0.6 \
       numpy==1.19.4 \
-      "jupyterlab>=3,<4" \
-      gdown \
-      pygame \
-      smbus \
-      Jetson.GPIO \
-      pylint \
-      pillow==8.4.0 \
-      pyquaternion \
-      evdev
+      oauthlib==3.2.2 \
+      pbr==5.11.1 \
+      pip==21.3.1 \
+      pycparser==2.21 \
+      pyparsing==3.0.9 \
+      PySocks==1.7.1 \
+      requests==2.27.1 \
+      SecretStorage==3.3.3 \
+      setuptools==59.6.0 \
+      six==1.16.0 \
+      soupsieve==2.3.2.post1 \
+      testresources==2.0.1 \
+      tqdm==4.64.1 \
+      typing_extensions==4.1.1 \
+      urllib3==1.26.15 \
+      wadllib==1.3.6 \
+      wheel==0.37.1 \
+      zipp==3.6.0
+
+#&& pip install --no-deps --no-cache-dir \
 
 
 ########################################
-# protobuf --cpp_implementation
+# naisy build package
 ########################################
-# 2022-09-30 10:29:05,363 - WARNING - ***IMPORTANT*** Installed protobuf is not cpp accelerated. Conversion will be extremely slow. See https://github.com/onnx/tensorflow-onnx/issues/1557
-# with cpp_implementation, tf2onnx.convert .pb to .onnx is 5 times faster.
-
-RUN sudo apt-get update \
-    && sudo apt-get install -y \
-      automake \
-    && sudo apt autoremove -y \
-    && sudo rm -rf /var/lib/apt/lists/* \
-    && . /virtualenv/$VENV/bin/activate \
-    && mkdir -p ~/github \
-    && cd ~/github \
-    && git clone -b 3.19.x --recursive https://github.com/protocolbuffers/protobuf.git \
-    && cd protobuf \
-    && export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=cpp \
-    && ./autogen.sh \
-    && ./configure --prefix=/usr/local \
-    && make -j$(nproc) \
-    && make check \
-    && sudo make install \
-    && sudo ldconfig \
-    && cd python \
-    && python setup.py build --cpp_implementation \
-    && python setup.py test --cpp_implementation \
-    && pip install --install-option="--cpp_implementation" .
-
 RUN . /virtualenv/$VENV/bin/activate \
-    && pip install -U \
-      pycuda \
+    && cd ~/ \
+    && gdown https://drive.google.com/uc?id=1jRbohWGPzS-CunpHwhhhbIh8BqlKaF5B -O scikit_image-0.17.2-cp36-cp36m-linux_aarch64.whl \
+    && gdown https://drive.google.com/uc?id=1nw_eJEQGbXg8fpOfefenrScW4KRJQuo6 -O matplotlib-3.3.4-cp36-cp36m-linux_aarch64.whl \
+    && gdown https://drive.google.com/uc?id=19_u8yz1JylXNu5grED8OWn8z2Wn38ha1 -O pycuda-2022.1-cp36-cp36m-linux_aarch64.whl \
+    && gdown https://drive.google.com/uc?id=16m9ce91wbUk9c2rZWlr5U2fF7v_bTgWo -O h5py-3.1.0-cp36-cp36m-linux_aarch64.whl \
+    && gdown https://drive.google.com/uc?id=1Z26drJuhYa1xha_jw08Tkx4DJqshHUGY -O Kivy-2.0.0-cp36-cp36m-linux_aarch64.whl \
+    && pip install \
+      ./scikit_image-0.17.2-cp36-cp36m-linux_aarch64.whl \
+      ./matplotlib-3.3.4-cp36-cp36m-linux_aarch64.whl \
+      ./pycuda-2022.1-cp36-cp36m-linux_aarch64.whl \
+      ./h5py-3.1.0-cp36-cp36m-linux_aarch64.whl \
+      ./Kivy-2.0.0-cp36-cp36m-linux_aarch64.whl \
+    && rm -rf \
+      scikit_image-0.17.2-cp36-cp36m-linux_aarch64.whl \
+      matplotlib-3.3.4-cp36-cp36m-linux_aarch64.whl \
+      pycuda-2022.1-cp36-cp36m-linux_aarch64.whl \
+      h5py-3.1.0-cp36-cp36m-linux_aarch64.whl \
+      Kivy-2.0.0-cp36-cp36m-linux_aarch64.whl
+
+
+########################################
+# pip package
+########################################
+RUN . /virtualenv/$VENV/bin/activate \
+    && sudo update-alternatives --set gcc /usr/bin/gcc-7 \
+    && sudo update-alternatives --set g++ /usr/bin/g++-7 \
+    && pip install --no-deps \
+      absl-py==0.12.0 \
+      Adafruit-Blinka==6.11.1 \
+      adafruit-circuitpython-busdevice==5.1.2 \
+      adafruit-circuitpython-framebuf==1.4.14 \
+      adafruit-circuitpython-lis3dh==5.1.18 \
+      adafruit-circuitpython-motor==3.3.5 \
+      adafruit-circuitpython-pca9685==3.4.1 \
+      adafruit-circuitpython-register==1.9.8 \
+      adafruit-circuitpython-servokit==1.3.8 \
+      adafruit-circuitpython-ssd1306==2.12.10 \
+      Adafruit-GPIO==1.0.3 \
+      Adafruit-MotorHAT==1.4.0 \
+      Adafruit-PCA9685==1.0.1 \
+      Adafruit-PlatformDetect==3.19.6 \
+      Adafruit-PureIO==1.1.9 \
+      Adafruit-SSD1306==1.6.2 \
+      aiocontextvars==0.2.2 \
+      albumentations==1.3.0 \
+      anyio==3.6.2 \
+      appdirs==1.4.4 \
+      argon2-cffi==21.3.0 \
+      argon2-cffi-bindings==21.2.0 \
+      arrow==1.2.3 \
+      astroid==2.11.7 \
+      astunparse==1.6.3 \
+      async-generator==1.10 \
+      attrs==22.2.0 \
+      Babel==2.11.0 \
+      backcall==0.2.0 \
+      binaryornot==0.4.4 \
+      bleach==4.1.0 \
+      blis==0.7.9 \
+      bokeh==2.3.3 \
+      cached-property==1.5.2 \
+      cachetools==4.2.4 \
+      catalogue==2.0.8 \
+      cffi==1.15.1 \
+      chardet==4.0.0 \
+      clang==5.0 \
+      click==8.0.4 \
+      cloudpickle==2.2.0 \
+      confection==0.0.4 \
+      contextvars==2.4 \
+      cookiecutter==1.7.3 \
+      cycler==0.11.0 \
+      cymem==2.0.7 \
+      dataclasses==0.8 \
+      decorator==4.4.2 \
+      defusedxml==0.7.1 \
+      Deprecated==1.2.13 \
+      deprecation==2.1.0 \
+      dill==0.3.4 \
+      docopt==0.6.2 \
+      docutils==0.18.1 \
+      entrypoints==0.4 \
+      evdev==1.6.1 \
+      fastai==2.5.5 \
+      fastbook==0.0.20 \
+      fastcore==1.4.0 \
+      fastdownload==0.0.7 \
+      fastprogress==1.0.3 \
+      fastrelease==0.1.17 \
+      flatbuffers==1.12 \
+      future==0.18.2 \
+      gast==0.4.0 \
+      ghapi==0.1.22 \
+      google-auth==2.16.2 \
+      google-auth-oauthlib==0.4.6 \
+      google-pasta==0.2.0 \
+      graphviz==0.19.1 \
+      grpcio==1.48.2 \
+      gym==0.21.0 \
+      #h5py==3.1.0 \
+      imagecorruptions==1.1.2 \
+      imageio==2.15.0 \
+      imageio-ffmpeg==0.4.8 \
+      imgaug==0.4.0 \
+      immutables==0.19 \
+      ipykernel==5.5.6 \
+      ipython==7.16.3 \
+      ipython-genutils==0.2.0 \
+      ipywidgets==7.7.4 \
+      isort==5.10.1 \
+      jedi==0.17.2 \
+      Jetson.GPIO==2.1.3 \
+      Jinja2==3.0.3 \
+      jinja2-time==0.2.0 \
+      joblib==1.1.1 \
+      json5==0.9.11 \
+      jsonschema==3.2.0 \
+      jupyter==1.0.0 \
+      jupyter-bokeh==3.0.3 \
+      jupyter-client==6.1.12 \
+      jupyter-console==6.4.2 \
+      jupyter-core==4.9.2 \
+      jupyterlab==3.2.9 \
+      jupyterlab-pygments==0.1.2 \
+      jupyterlab-server==2.10.3 \
+      jupyterlab-widgets==1.1.3 \
+      jupyter-packaging==0.10.6 \
+      jupyter-server==1.13.1 \
+      keras==2.6.0 \
+      Keras-Applications==1.0.8 \
+      Keras-Preprocessing==1.1.2 \
+      #Kivy==2.0.0 \
+      Kivy-Garden==0.1.5 \
+      kiwisolver==1.3.1 \
+      langcodes==3.3.0 \
+      lazy-object-proxy==1.7.1 \
+      loguru==0.6.0 \
+      Mako==1.1.6 \
+      Markdown==3.3.7 \
+      MarkupSafe==2.0.1 \
+      #matplotlib==3.3.4 \
+      mccabe==0.7.0 \
+      mistune==0.8.4 \
+      mock==3.0.5 \
+      moviepy==1.0.3 \
+      murmurhash==1.0.8 \
+      nbclassic==0.3.5 \
+      nbclient==0.5.9 \
+      nbconvert==5.6.1 \
+      nbdev==1.1.23 \
+      nbformat==5.1.3 \
+      nest-asyncio==1.5.6 \
+      netron==7.0.9 \
+      networkx==2.5.1 \
+      notebook==6.4.10 \
       onnx==1.11.0 \
+      opt-einsum==3.3.0 \
+      packaging==21.3 \
+      paho-mqtt==1.6.1 \
+      pandas==1.1.5 \
+      pandocfilters==1.5.0 \
+      parso==0.7.1 \
+      pathy==0.10.1 \
+      pexpect==4.8.0 \
+      pgi==0.0.11.2 \
+      pickleshare==0.7.5 \
+      Pillow==8.4.0 \
+      pkgconfig==1.5.5 \
+      platformdirs==2.4.0 \
+      plotly==5.13.1 \
+      poyo==0.5.0 \
+      preshed==3.0.8 \
+      prettytable==2.5.0 \
+      proglog==0.1.10 \
+      progress==1.6 \
+      prometheus-client==0.16.0 \
+      prompt-toolkit==3.0.36 \
+      protobuf==3.19.6 \
+      psutil==5.9.2 \
+      ptyprocess==0.7.0 \
+      pyasn1==0.4.8 \
+      pyasn1-modules==0.2.8 \
+      pybind11==2.10.4 \
+      pycairo==1.20.1 \
+      pycocotools==2.0.6 \
+      #pycuda==2022.1 \
+      pydantic==1.9.2 \
+      pyfiglet==0.8.post1 \
+      pyftdi==0.53.3 \
+      pygame==2.3.0 \
+      Pygments==2.14.0 \
+      PyGObject==3.42.2 \
+      pylint==2.13.9 \
+      pyquaternion==0.9.9 \
+      pyrsistent==0.18.0 \
+      pyserial==3.5 \
+      python-dateutil==2.8.2 \
+      python-slugify==6.1.2 \
+      pytools==2022.1.12 \
+      pytorchcv==0.0.67 \
+      pytz==2022.7.1 \
+      pyusb==1.2.1 \
+      PyWavelets==1.1.1 \
+      PyYAML==6.0 \
+      pyzmq==25.0.2 \
+      qtconsole==5.2.2 \
+      QtPy==2.0.1 \
+      reportlab==3.6.8 \
+      requests-oauthlib==1.3.1 \
+      RPi.GPIO==0.7.1 \
+      rsa==4.9 \
+      #scikit-image==0.17.2 \
+      scikit-learn==0.24.2 \
+      scipy==1.5.4 \
+      seaborn==0.11.2 \
+      Send2Trash==1.8.0 \
+      sentencepiece==0.1.97 \
+      Shapely==1.8.5.post1 \
+      simple-pid==1.0.1 \
+      smart-open==6.3.0 \
+      smbus==1.1.post2 \
+      sniffio==1.2.0 \
+      spacy==3.5.1 \
+      spacy-legacy==3.0.12 \
+      spacy-loggers==1.0.4 \
+      spidev==3.5 \
+      srsly==2.4.6 \
+      tabulate==0.8.10 \
+      tenacity==8.2.2 \
+      termcolor==1.1.0 \
+      terminado==0.12.1 \
+      testpath==0.6.0 \
+      text-unidecode==1.3 \
       tf2onnx==1.12.1 \
-      netron
+      tf-keras-vis==0.6.2 \
+      thinc==8.1.9 \
+      thop==0.1.1.post2209072238 \
+      threadpoolctl==3.1.0 \
+      tifffile==2020.9.3 \
+      tomli==1.2.3 \
+      tomlkit==0.11.6 \
+      tornado==6.1 \
+      traitlets==4.3.3 \
+      typed-ast==1.5.4 \
+      typer==0.7.0 \
+      wasabi==1.1.1 \
+      wcwidth==0.2.6 \
+      webencodings==0.5.1 \
+      websocket-client==1.3.1 \
+      Werkzeug==2.0.3 \
+      widgetsnbextension==3.6.3 \
+      wrapt==1.14.1 \
+    ## Tensorflow 2.7.0
+    && pip install https://developer.download.nvidia.com/compute/redist/jp/v461/tensorflow/tensorflow-2.7.0+nv22.1-cp36-cp36m-linux_aarch64.whl \
+    && sudo update-alternatives --set gcc /usr/bin/gcc-8 \
+    && sudo update-alternatives --set g++ /usr/bin/g++-8
 
 
 ########################################
@@ -715,120 +975,47 @@ RUN curl -fsSL https://deb.nodesource.com/setup_14.x | sudo -E bash - \
 
 
 ########################################
-# nodejs legacy provider
-########################################
-# https://stackoverflow.com/questions/69692842/error-message-error0308010cdigital-envelope-routinesunsupported
-# Error: error:0308010C:digital envelope routines::unsupported
-#ENV NODE_OPTIONS=--openssl-legacy-provider
-
-
-########################################
-# JupyterLab save to pdf
-########################################
-RUN mkdir -p ~/github \
-    && cd ~/github \
-    && git clone https://github.com/qpdf/qpdf \
-    && cd qpdf \
-    && cmake -S . -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-    && cmake --build build \
-    && sudo cmake --install build
-
-RUN sudo apt-get update \
-    && sudo apt-get install -y \
-      texlive \
-      texlive-xetex \
-      texlive-generic-extra \
-      texlive-generic-recommended \
-      pandoc \
-    && sudo apt autoremove -y \
-    && sudo rm -rf /var/lib/apt/lists/*
-
-RUN . /virtualenv/$VENV/bin/activate \
-    && pip install -U nbconvert==5.6.1
-
-#pip install pdfrw # for python2.6-3.6
-#pip install PyPDF2 # for python2.7-3.10
-#pip install pikepdf # for python3.7-3.10
-
-# jupyter nbconvert --to pdf notebook.ipynb
-
-########################################
 # jupyter_clickable_image_widget
 ########################################
 RUN . /virtualenv/$VENV/bin/activate \
-    && pip install \
-      jupyter-packaging \
-      cookiecutter \
-      chardet==4.0.0 \
     && mkdir -p ~/github \
     && cd ~/github \
     && git clone -b jupyterlab-3 https://github.com/naisy/jupyter_clickable_image_widget \
     && cd jupyter_clickable_image_widget/js \
-    && python -m jupyterlab.upgrade_extension --no-input . \
-    && npm install -D \
-      css-loader \
-      lodash \
-      @babel/core@ \
-      @babel/preset-env@ \
-      @jupyterlab/builder@ \
-      @jupyterlab/testutils@ \
-      @types/jest@ \
-      @typescript-eslint/eslint-plugin@ \
-      @typescript-eslint/parser@ \
-      eslint@ \
-      eslint-config-prettier@ \
-      eslint-plugin-prettier@ \
-      jest@ \
-      npm-run-all@ \
-      prettier@ \
-      rimraf@ \
-      stylelint@ \
-      stylelint-config-prettier@ \
-      stylelint-config-recommended@ \
-      stylelint-config-standard@ \
-      stylelint-prettier@ \
-      ts-jest@ \
-      typescript@ \
-      @jupyter-widgets/base \
-      @jupyter-widgets/controls@ \
-    && npm audit fix --force \
+    && npm install \
+      webpack@5.76.3 \
+      webpack-cli@5.1.4 \
+      crypto@1.0.1 \
     && cd .. \
     && pip install -e . \
-    && jupyter labextension install @jupyter-widgets/jupyterlab-manager \
+    && jupyter labextension install @jupyter-widgets/jupyterlab-manager@3.0.0 \
     && jupyter labextension install js \
-    && jupyter-lab build \
-    # cleaning
-    && jlpm cache clean \
-    && npm cache clean --force
+    && jupyter-lab build
+
+#インストール済みの@jupyter-widgets/jupyterlab-managerの情報
+#npm list @jupyter-widgets/jupyterlab-manager
+#npm list -g @jupyter-widgets/jupyterlab-manager
+#jupyter labextension list
 
 
 ########################################
-# bokehインストール
+# Jupyter Lab 設定
 ########################################
 RUN . /virtualenv/$VENV/bin/activate \
-    && pip install jupyter_bokeh
-
-
-########################################
-# Jupyter Lab Vertual Env
-########################################
-# To set the virtualenv as "python3", jupyter notebooks works in virtualenv.
-RUN . /virtualenv/$VENV/bin/activate \
-    && python -m ipykernel install --name python3 --user
-
-
-########################################
-# Jupyter password 設定
-########################################
-#RUN jupyter notebook --generate-config
-RUN . /virtualenv/$VENV/bin/activate \
-    && python -c "from notebook.auth.security import set_password; set_password('jupyter', '$HOME/.jupyter/jupyter_notebook_config.json')"
-
-
-########################################
-# Disable Jupyter autosave
-########################################
-RUN mkdir -p ~/.jupyter/lab/user-settings/\@jupyterlab/docmanager-extension \
+    ####################
+    # Jupyter Lab Vertual Env
+    # To set the virtualenv as "python3", jupyter notebooks works in virtualenv.
+    ####################
+    && python -m ipykernel install --name python3 --user \
+    ####################
+    # Jupyter Lab password 設定
+    ####################
+    && mkdir -p $HOME/.jupyter \
+    && python -c "from notebook.auth.security import set_password; set_password('jupyter', '$HOME/.jupyter/jupyter_notebook_config.json')" \
+    ####################
+    # Disable Jupyter autosave
+    ####################
+    && mkdir -p ~/.jupyter/lab/user-settings/\@jupyterlab/docmanager-extension \
     && echo '{\n\
     // Document Manager\n\
     // @jupyterlab/docmanager-extension:plugin\n\
@@ -839,13 +1026,11 @@ RUN mkdir -p ~/.jupyter/lab/user-settings/\@jupyterlab/docmanager-extension \
     // Whether to autosave documents\n\
     "autosave": false\n\
 }'\
->  ~/.jupyter/lab/user-settings/\@jupyterlab/docmanager-extension/plugin.jupyterlab-settings
-
-
-########################################
-# Jupyter Dark Terminal Theme
-########################################
-RUN mkdir -p ~/.jupyter/lab/user-settings/\@jupyterlab/terminal-extension \
+>  ~/.jupyter/lab/user-settings/\@jupyterlab/docmanager-extension/plugin.jupyterlab-settings \
+    ####################
+    # Jupyter Dark Terminal Theme
+    ####################
+    && mkdir -p ~/.jupyter/lab/user-settings/\@jupyterlab/terminal-extension \
     && echo '{\n\
     // Terminal\n\
     // @jupyterlab/terminal-extension:plugin\n\
@@ -856,18 +1041,15 @@ RUN mkdir -p ~/.jupyter/lab/user-settings/\@jupyterlab/terminal-extension \
     // The theme for the terminal.\n\
     "theme": "dark"\n\
 }'\
->  ~/.jupyter/lab/user-settings/\@jupyterlab/terminal-extension/plugin.jupyterlab-settings
-
-
-########################################
-# Jupyter Console System Color Tango to Rxvt-LightBlue/Aquamarine
-########################################
-# ファイル名がわからん。インストールで変わる。
-# find /usr/local/share/jupyter/lab/static/ -type f | xargs grep -l "#2e3436"
-# /usr/local/share/jupyter/lab/static/vendors~main.23ff2294e1453ac6af20.js
-
-#RUN export JUPYTER_TERMINAL_COLOR_FILE=`find /usr/local/share/jupyter/lab/static/ -type f -name "*\.js" | xargs -I {} grep -l "#3465a4" {}` \
-RUN export JUPYTER_TERMINAL_COLOR_FILE=`find /virtualenv/$VENV/share/jupyter/lab/static/ -type f -name "*\.js" | xargs -I {} grep -l "#3465a4" {}` \
+>  ~/.jupyter/lab/user-settings/\@jupyterlab/terminal-extension/plugin.jupyterlab-settings \
+    ####################
+    # Jupyter Console System Color Tango to Rxvt-LightBlue/Aquamarine
+    ####################
+    # ファイル名がわからん。インストールで変わる。
+    # find /usr/local/share/jupyter/lab/static/ -type f | xargs grep -l "#2e3436"
+    # /usr/local/share/jupyter/lab/static/vendors~main.23ff2294e1453ac6af20.js
+    #export JUPYTER_TERMINAL_COLOR_FILE=`find /usr/local/share/jupyter/lab/static/ -type f -name "*\.js" | xargs -I {} grep -l "#3465a4" {}` \
+    && export JUPYTER_TERMINAL_COLOR_FILE=`find /virtualenv/$VENV/share/jupyter/lab/static/ -type f -name "*\.js" | xargs -I {} grep -l "#3465a4" {}` \
     && sed -i 's/#2e3436/#000000/g' $JUPYTER_TERMINAL_COLOR_FILE \
     && sed -i 's/#cc0000/#cd0000/g' $JUPYTER_TERMINAL_COLOR_FILE \
     && sed -i 's/#4e9a06/#00cd00/g' $JUPYTER_TERMINAL_COLOR_FILE \
@@ -913,6 +1095,7 @@ RUN . /virtualenv/$VENV/bin/activate \
     && pip install torchvision-0.11.1-cp36-cp36m-linux_aarch64.whl \
     && rm torchvision-0.11.1-cp36-cp36m-linux_aarch64.whl
 
+
 ########################################
 # torchvision v0.11.1 BUILD
 ########################################
@@ -938,32 +1121,6 @@ RUN . /virtualenv/$VENV/bin/activate \
     && git clone https://github.com/NVIDIA-AI-IOT/torch2trt \
     && cd torch2trt \
     && pip install --install-option="--plugins" .
-
-
-########################################
-# Tensorflow2 Object Detection to TensorRT
-########################################
-RUN . /virtualenv/$VENV/bin/activate \
-    && pip install -U --no-deps \
-      numpy==1.19.4 \
-      future==0.18.2 \
-      mock==3.0.5 \
-      keras_preprocessing==1.1.2 \
-      keras_applications==1.0.8 \
-      keras==2.6 \
-      gast==0.4.0 \
-      pybind11 \
-      cython \
-      pkgconfig
-
-RUN . /virtualenv/$VENV/bin/activate \
-    && pip install h5py==3.1.0
-
-# https://stackoverflow.com/questions/75583410/module-save-error-typeerror-this-dict-descriptor-does-not-support-dict
-# TypeError: this __dict__ descriptor does not support '_DictWrapper' objects
-RUN . /virtualenv/$VENV/bin/activate \
-    && pip install wrapt==1.14.1 \
-    && pip install -U https://developer.download.nvidia.com/compute/redist/jp/v461/tensorflow/tensorflow-2.7.0+nv22.1-cp36-cp36m-linux_aarch64.whl
 
 
 ########################################
@@ -1060,140 +1217,6 @@ RUN . /virtualenv/$VENV/bin/activate \
          model = torchvision.models.resnet18(pretrained=True)"
 
 
-########################################
-# graphviz
-########################################
-USER root
-RUN apt-get update \
-    && apt-get install -y \
-      python-pydot \
-      python-pydot-ng \
-      graphviz \
-    && apt autoremove -y \
-    && rm -rf /var/lib/apt/lists/*
-
-
-########################################
-# YOLOV5
-########################################
-# to build matplotlib requires gcc7
-# ‘build/freetype-2.6.1/objs/.libs/libfreetype.a’ generated with LTO version 7.3 instead of the expected 6.2
-USER $USERNAME
-RUN . /virtualenv/$VENV/bin/activate \
-    && sudo update-alternatives --set gcc /usr/bin/gcc-7 \
-    && sudo update-alternatives --set g++ /usr/bin/g++-7 \
-    && pip install -U matplotlib \
-    && sudo update-alternatives --set gcc /usr/bin/gcc-8 \
-    && sudo update-alternatives --set g++ /usr/bin/g++-8
-
-RUN . /virtualenv/$VENV/bin/activate \
-    && pip install -U tqdm \
-    && pip install -U seaborn
-
-RUN cd ~/github \
-    && git clone https://github.com/ultralytics/yolov5 \
-    && cd yolov5 \
-    && mv requirements.txt R.txt \
-    && touch requirements.txt
-
-
-########################################
-# YOLOX
-########################################
-RUN . /virtualenv/$VENV/bin/activate \
-    && pip install -U loguru \
-    && pip install -U thop \
-    && pip install -U tabulate \
-    && pip install -U pycocotools
-
-
-# edit YOLOX/tools/trt.py: execute from outside directory
-#before:
-#    engine_file_demo = os.path.join("demo", "TensorRT", "cpp", "model_trt.engine")
-#after:
-#    engine_file_demo = os.path.join(os.path.dirname(__file__), "../", "demo", "TensorRT", "cpp", "model_trt.engine")
-
-RUN . /virtualenv/$VENV/bin/activate \
-    && cd ~/github \
-    && git clone https://github.com/Megvii-BaseDetection/YOLOX \
-    && cd YOLOX \
-    && sed -i 's|os\.path\.join("demo", "TensorRT", "cpp", "model_trt\.engine")|os.path.join(os.path.dirname(__file__), "../", "demo", "TensorRT", "cpp", "model_trt.engine")|g' tools/trt.py \
-    && mv requirements.txt R.txt \
-    && touch requirements.txt \
-    && pip install -e .
-
-
-########################################
-# Donkey Car
-########################################
-RUN . /virtualenv/$VENV/bin/activate \
-    && pip install -U fastai \
-    && pip install -U nbdev \
-    && pip install -U sentencepiece!=0.1.90,!=0.1.91 \
-    && pip install -U fastbook
-
-
-########################################
-# imgaug
-########################################
-RUN . /virtualenv/$VENV/bin/activate \
-    && pip install -U \
-      six \
-      scipy \
-      scikit-image \
-      imageio \
-      Shapely
-
-RUN . /virtualenv/$VENV/bin/activate \
-    && pip install --no-deps \
-      imgaug \
-      imagecorruptions
-
-
-########################################
-# Donkey Car
-########################################
-RUN . /virtualenv/$VENV/bin/activate \
-    && pip install moviepy \
-    && pip install kivy \
-    && pip install plotly \
-    && pip install pyyaml
-
-
-########################################
-# Adafruit-Libraries 2022/04/13
-########################################
-RUN . /virtualenv/$VENV/bin/activate \
-    && pip install -U adafruit-circuitpython-busdevice==5.1.2 \
-      adafruit-circuitpython-motor==3.3.5 \
-      adafruit-circuitpython-pca9685==3.4.1 \
-      adafruit-circuitpython-register==1.9.8 \
-      adafruit-circuitpython-servokit==1.3.8 \
-      Adafruit-Blinka==6.11.1 \
-      Adafruit-GPIO==1.0.3 \
-      Adafruit-MotorHAT==1.4.0 \
-      Adafruit-PlatformDetect==3.19.6 \
-      Adafruit-PureIO==1.1.9 \
-      Adafruit-SSD1306==1.6.2
-
-
-########################################
-# deepstream_python_apps
-########################################
-USER root
-RUN apt-get update \
-    && apt-get install -y \
-      python-gi-dev \
-      python-gi-cairo \
-      apt-transport-https \
-      ca-certificates \
-      automake \
-    && update-ca-certificates \
-    && apt autoremove -y \
-    && rm -rf /var/lib/apt/lists/*
-
-RUN chown -R $USERNAME:$USERNAME /opt/nvidia/deepstream/deepstream/
-
 
 ########################################
 # Why `pyvenv` does not install `python-config`?
@@ -1201,20 +1224,30 @@ RUN chown -R $USERNAME:$USERNAME /opt/nvidia/deepstream/deepstream/
 ########################################
 # https://github.com/pypa/virtualenv/issues/169
 # Here follows the python-config script that is installed by virtualenv into ${VENV}/bin. If you use python3 -m venv ${VENV}, then just copy it into this location manually until this issue gets fixed (NB there's a bug report from 2011 still without a fix as far as I can tell).
-USER $USERNAME
 
 RUN ln -s /usr/bin/python3-config /virtualenv/$VENV/bin/python3-config
+ENV USE_NEW_NVSTREAMMUX="yes"
+ENV GIT_SSL_NO_VERIFY=true
 
 RUN . /virtualenv/$VENV/bin/activate \
     && cd /opt/nvidia/deepstream/deepstream/sources/ \
-    && git clone -b v1.1.1 --recursive https://github.com/NVIDIA-AI-IOT/deepstream_python_apps \
+    && git clone -b v1.1.1 https://github.com/NVIDIA-AI-IOT/deepstream_python_apps \
     && cd deepstream_python_apps \
-    && cd 3rdparty/gst-python/ \
+    && git submodule deinit 3rdparty/gst-python \
+    && git rm 3rdparty/gst-python \
+    && git submodule update --init --recursive \
+    && cd 3rdparty \
+    && git clone https://github.com/GStreamer/gst-python.git \
+    && cd gst-python \
+    && git checkout 1a8f48a6c2911b308231a3843f771a50775cbd2e \
+    && git config submodule.common.url https://github.com/GStreamer/common.git \
+    && git submodule update \
     && export PYTHON=python3 \
     && export C_INCLUDE_PATH=/usr/include/python3.6m \
-    && ./autogen.sh \
+    && ./autogen.sh --disable-gtk-doc --noconfigure \
+    && ./configure --with-libpython-dir=/usr/lib/aarch64-linux-gnu --prefix /virtualenv/python3 \
     && make \
-    && sudo make install 
+    && make install
 
 # DS_VERSIONは./bindings/CMakeLists.txt:29:check_variable_set(DS_PATH "/opt/nvidia/deepstream/deepstream-${DS_VERSION}")にセットされる
 # default values
@@ -1260,21 +1293,6 @@ RUN . /virtualenv/$VENV/bin/activate \
 
 
 ########################################
-# MQTT Broker (Server) mosquitto
-########################################
-USER root
-RUN apt-get update \
-    && apt-get install -y \
-       libmosquitto-dev \
-       mosquitto \
-       mosquitto-clients \
-       mosquitto-dev \
-    && apt autoremove -y \
-    && rm -rf /var/lib/apt/lists/*
-
-
-USER $USERNAME
-########################################
 # Jetson Inference
 ########################################
 # https://github.com/dusty-nv/jetson-inference/blob/master/Dockerfile
@@ -1291,13 +1309,6 @@ RUN . /virtualenv/$VENV/bin/activate \
 
 
 ########################################
-# pytorchcv
-########################################
-RUN . /virtualenv/$VENV/bin/activate \
-    && pip install pytorchcv
-
-
-########################################
 # gstreamer
 ########################################
 # timeoverlay
@@ -1310,15 +1321,17 @@ RUN . /virtualenv/$VENV/bin/activate \
 # libgstximagesink.so - not use
 # libgstxvimagesink.so - not use
 
-RUN sudo apt-get update \
-    && sudo apt-get install -y \
-      gstreamer1.0-clutter-3.0 \
-      gstreamer1.0-gtk3 \
-      gstreamer1.0-gl \
-      gstreamer1.0-pulseaudio \
-      libcanberra-gtk-module \
-    && sudo apt autoremove -y \
-    && sudo rm -rf /var/lib/apt/lists/*
+# Gst.infoとか足りないものがあるのでビルドして入れておく
+#RUN . /virtualenv/$VENV/bin/activate \
+#    && cd ~/github \
+#    && git clone https://github.com/GStreamer/gst-python.git \
+#    && cd gst-python \
+#    && export PYTHON=/usr/bin/python3 \
+#    && git checkout 1.14.5 \
+#    && ./autogen.sh --disable-gtk-doc --noconfigure \
+#    && ./configure --with-libpython-dir=/usr/lib/aarch64-linux-gnu --prefix /virtualenv/python3 \
+#    && make \
+#    && make install
 
 
 ########################################
@@ -1344,15 +1357,9 @@ RUN cd /opt/nvidia/deepstream/deepstream-6.0/sources/apps/sample_apps \
 
 
 ########################################
-# Additional pip packages
-########################################
-RUN . /virtualenv/$VENV/bin/activate \
-    && pip install -U \
-      reportlab
-
-########################################
 # Multimedia API
 ########################################
 # cp -r /usr/src/jetson_multimedia_api/ ./
 #COPY ./jetson_multimedia_api /usr/src/jetson_multimedia_api
 #RUN sudo chown -R jetson:jetson /usr/src/jetson_multimedia_api
+
