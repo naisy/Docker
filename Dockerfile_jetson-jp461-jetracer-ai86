@@ -52,7 +52,7 @@ RUN . /virtualenv/$VENV/bin/activate \
     && cd ~/github \
     && git clone -b jupyterlab https://github.com/FaBoPlatform/FaBoPWM-PCA9685-Python \
     && cd FaBoPWM-PCA9685-Python \
-    && pip3 install . \
+    && pip install . \
     ### JetRacer
     && cd ~/github \
     && git clone https://github.com/FaBoPlatform/jetracer \
@@ -63,7 +63,16 @@ RUN . /virtualenv/$VENV/bin/activate \
     && cd ~/github \
     && git clone https://github.com/NVIDIA-AI-IOT/jetcam \
     && cd jetcam \
-    && pip install -e .
+    && pip install -e . \
+    ### OLED IP Address
+    && cd ~/github \
+    && git clone https://github.com/FaBoPlatform/ip_address_display \
+    && cd ip_address_display \
+    && mkdir -p ~/bin \
+    && cp oled_ip_jetson.py ~/bin \
+    && cp oled_ip.sh ~/bin \
+    && sed -i '/oled/d' ~/bin/oled_ip.sh \
+    && echo '/virtualenv/python3/bin/python /home/$(getent passwd 1000 | cut -d: -f1)/bin/oled_ip_jetson.py' >> ~/bin/oled_ip.sh
 
 
 RUN sudo sed -i 's/docker-/docker-jetracer-ai86-/g' /root/.bashrc \

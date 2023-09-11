@@ -61,8 +61,7 @@ fi
 # docker image
 ########################################
 IMG=naisy/jetson-jp461-jetracer-ai86
-PORT=8892
-NAME="jetracer"
+NAME="ip_address"
 
 docker run \
     --runtime=nvidia \
@@ -87,5 +86,5 @@ docker run \
     --network=host \
     --name="${NAME}" \
 $IMG \
-bash -c "source /virtualenv/python3/bin/activate && jupyter lab --ip=0.0.0.0 --port=$PORT --no-browser --ServerApp.root_dir=/ --LabApp.default_url=/lab?file-browser-path=$HOST_USER_HOME"
+bash -c "~/bin/oled_ip.sh"
 
