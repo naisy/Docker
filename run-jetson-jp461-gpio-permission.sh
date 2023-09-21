@@ -15,4 +15,4 @@ docker run \
     -v /dev/:/dev/ \
     --name gpio-permission \
 $IMG \
-bash -c "groupadd -f -r gpio && chown root.gpio /dev/gpiochip0 && chmod 660 /dev/gpiochip0 && tail -f /dev/null"
+bash -c "groupadd -f -r gpio && chown root.gpio /dev/gpiochip* && chmod 660 /dev/gpiochip* && tail -f /dev/null"
