@@ -52,14 +52,6 @@ if [ ! -d "$HOST_MOUNT_PATH" ]; then
 fi
 
 ########################################
-# make JupyterLab HOME directory
-########################################
-if [ ! -d "$HOST_MOUNT_PATH"/Notebooks ]; then
-    mkdir $HOST_MOUNT_PATH/Notebooks
-    chown $HOST_USER:$HOST_USER_GROUP $HOST_MOUNT_PATH/Notebooks
-fi
-
-########################################
 # docker image
 ########################################
 IMG=naisy/jetson-jp461-deepstream601-triton-base
