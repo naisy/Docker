@@ -1,0 +1,73 @@
+########################################
+# Docker build
+########################################
+#time sudo docker build -t naisy/pc-ubuntu2004-cu112-donkeycar-overdrive4-tf27 -f Dockerfile_pc_ubuntu2004_cu112_donkeycar_overdrive4_tf27 .
+
+# docker push
+#docker login --username=naisy
+#docker images
+#docker push naisy/pc-ubuntu2004-cu112-base
+
+
+#sudo service docker stop
+#cd /var/lib
+#sudo mv docker /mnt/ssd250
+#sudo ln -s /mnt/ssd250 docker
+#sudo service docker start
+
+# https://github.com/NVIDIA/nvidia-docker/issues/1033
+# cmake fails unable to find cuda library while building an image
+#vi /etc/docker/daemon.json
+#{
+#    "runtimes": {
+#        "nvidia": {
+#            "path": "/usr/bin/nvidia-container-runtime",
+#            "runtimeArgs": []
+#        }
+#    },
+#    "default-runtime": "nvidia"
+#}
+#
+#service docker stop
+#service docker start
+
+
+# end of information
+
+
+########################################
+# Underlying OS repogitory
+########################################
+# https://hub.docker.com/r/nvidia/cuda
+FROM naisy/pc-ubuntu2004-cu112-base
+
+########################################
+# Base OS ARG
+########################################
+ARG USERNAME=ubuntu
+ARG VENV=python3
+
+
+########################################
+# DonkeyCar OVERDRIVE4
+########################################
+RUN . /virtualenv/$VENV/bin/activate \
+    && cd ~/github \
+    && git clone -b overdrive4 https://github.com/naisy/donkeycar \
+    && git clone https://github.com/naisy/overdrive \
+    && git clone https://github.com/naisy/donkeycar_tools \
+    && cd donkeycar \
+    && pip install -e .
+
+RUN . /virtualenv/$VENV/bin/activate \
+    && cd ~/github \
+    && git clone https://github.com/tawnkramer/gym-donkeycar \
+    && cd gym-donkeycar \
+    && sed -i 's/python_requires=">=3\.7"/python_requires=">=3.6"/g' setup.py \
+    && sed -i 's|^requirements = \["gym==0.21", "numpy", "pillow"\]|requirements = []|g' setup.py \
+    && pip install -e .
+
+
+RUN sudo sed -i 's/docker-/docker-donkeycar-overdrive4-/g' /root/.bashrc \
+    && sed -i 's/docker-/docker-donkeycar-overdrive4-/g' /home/$USERNAME/.bashrc
+
