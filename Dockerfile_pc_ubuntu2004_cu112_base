@@ -526,7 +526,7 @@ set background=dark'\
 
 
 ########################################
-# CMake 3.26.5
+# CMake 3.27.6
 ########################################
 USER $USERNAME
 RUN mkdir -p ~/github \
@@ -534,7 +534,7 @@ RUN mkdir -p ~/github \
     && sudo apt-get update \
     && sudo apt-get remove -y \
       cmake \
-    && git clone https://github.com/Kitware/CMake.git --depth 1 -b v3.26.5 \
+    && git clone https://github.com/Kitware/CMake.git --depth 1 -b v3.27.6 \
     && cd CMake \
     && ./bootstrap --system-curl \
     && make -j$(nproc) \
@@ -662,6 +662,7 @@ RUN . /virtualenv/$VENV/bin/activate \
       clang==5.0 \
       click==8.0.4 \
       cloudpickle==2.2.0 \
+      cmake==3.27.6 \
       confection==0.0.4 \
       contextvars==2.4 \
       cookiecutter==1.7.3 \
@@ -732,6 +733,7 @@ RUN . /virtualenv/$VENV/bin/activate \
       lazy_loader==0.3 \
       lazy-object-proxy==1.7.1 \
       libclang==16.0.6 \
+      lit==17.0.2 \
       loguru==0.6.0 \
       Mako==1.1.6 \
       Markdown==3.3.7 \
@@ -752,6 +754,16 @@ RUN . /virtualenv/$VENV/bin/activate \
       netron==7.2.3 \
       networkx==3.1 \
       notebook==6.4.10 \
+      nvidia-cuda-cupti-cu11==11.7.101 \
+      nvidia-cuda-nvrtc-cu11==11.8.89 \
+      nvidia-cuda-runtime-cu11==11.7.99 \
+      nvidia-cudnn-cu11==8.5.0.96 \
+      nvidia-cufft-cu11==10.9.0.58 \
+      nvidia-curand-cu11==10.2.10.91 \
+      nvidia-cusolver-cu11==11.4.0.1 \
+      nvidia-cusparse-cu11==11.7.4.91 \
+      nvidia-nccl-cu11==2.14.3 \
+      nvidia-nvtx-cu11==11.7.91 \
       onnx==1.11.0 \
       opencv-python==4.8.1.78 \
       opt-einsum==3.3.0 \
@@ -845,10 +857,11 @@ RUN . /virtualenv/$VENV/bin/activate \
       tifffile==2023.7.10 \
       tomli==1.2.3 \
       tomlkit==0.11.6 \
-      torch==2.1.0 \
-      torchvision==0.16.0 \
+      torch==2.0.1 \
+      torchvision==0.15.2 \
       tornado==6.1 \
       traitlets==4.3.3 \
+      triton==2.0.0 \
       typed-ast==1.5.4 \
       typer==0.7.0 \
       wasabi==1.1.1 \
@@ -880,13 +893,13 @@ RUN curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash - \
 ########################################
 # JupyterLab save to pdf
 ########################################
-RUN mkdir -p ~/github \
-    && cd ~/github \
-    && git clone https://github.com/qpdf/qpdf \
-    && cd qpdf \
-    && cmake -S . -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-    && cmake --build build \
-    && sudo cmake --install build
+#RUN mkdir -p ~/github \
+#    && cd ~/github \
+#    && git clone https://github.com/qpdf/qpdf \
+#    && cd qpdf \
+#    && cmake -S . -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+#    && cmake --build build \
+#    && sudo cmake --install build
 
 
 ########################################
@@ -982,7 +995,6 @@ RUN . /virtualenv/$VENV/bin/activate \
 # https://stackoverflow.com/questions/69038787/how-to-set-default-folder-in-jupyterlab-file-browser
 #CMD . /virtualenv/python3/bin/activate && exec bash -c "jupyter-lab --ip=0.0.0.0 --no-browser --ServerApp.root_dir=/ --LabApp.default_url=/lab?file-browser-path=$HOME/data/Notebooks"
 CMD . /virtualenv/python3/bin/activate && exec bash -c "jupyter-lab --ip=0.0.0.0 --no-browser --ServerApp.root_dir=/ --LabApp.default_url=/lab?file-browser-path=$HOME"
-
 
 
 # https://github.com/keras-team/keras-tuner/issues/317
