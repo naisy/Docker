@@ -60,8 +60,6 @@ RUN rm -rf /var/lib/apt/lists/* \
       apt-utils \
     && apt-get remove -y \
       cuda-compat-11-2 \
-    && apt-get install -y \
-      libnvidia-compute-525 \
     # change the locale from POSIX to UTF-8
     && apt-get install -y \
       locales \

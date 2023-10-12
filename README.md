@@ -51,7 +51,7 @@ Default pass: jupyter
 | Jetson JetPack 4.6.1 | naisy/jetson-jp461-deepstream601-triton-ros2-foxy | run-jetson-jp461-ros2-foxy.sh | 49.3GB | 20220905 |
 | Jetson JetPack 4.6.1 | naisy/jetson-jp461-espnet2-tts | run-jetson-jp461-espnet2-tts.sh | 23.6GB | 20221003 |
 | Jetson JetPack 4.6.1 | naisy/jetson-jp461-carla | run-jetson-jp461-carla.sh | 28.6GB | 20221003 |
-| PC Ubuntu 20.04 | naisy/pc-ubuntu2004-cu112-donkeycar-overdrive4-tf27 | run-pc-ubuntu2004-cu112-donkeycar-overdrive4-tf27.sh | 27.1GB | 20231011 |
+| PC Ubuntu 20.04 | naisy/pc-ubuntu2004-cu112-donkeycar-overdrive4-tf27 | run-pc-ubuntu2004-cu112-donkeycar-overdrive4-tf27.sh | 26.9GB | 20231012 |
 | PC Ubuntu 18.04 | naisy/carla-xdg | run-pc-ubuntu1804-carla.sh | 16.6GB | 20220802 |
 | PC Ubuntu 18.04 | naisy/pc-ubuntu1804-donkeycar4-tf22 | run-pc-ubuntu1804-donkeycar4-tf22.sh | 18GB | 20220918 |
 
