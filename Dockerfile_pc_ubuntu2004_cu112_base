@@ -6,7 +6,7 @@
 # docker push
 #docker login --username=naisy
 #docker images
-#docker push naisy/pc-ubuntu2004-base
+#docker push naisy/pc-ubuntu2004-cu112-base
 
 
 #sudo service docker stop
@@ -589,7 +589,7 @@ RUN . /virtualenv/$VENV/bin/activate \
       gdown==4.6.4 \
       httplib2==0.22.0 \
       idna==3.4 \
-      importlib-metadata==4.8.3 \
+      importlib-metadata==6.8.0 \
       importlib-resources==5.4.0 \
       jeepney==0.7.1 \
       keyring==23.4.1 \
@@ -599,11 +599,11 @@ RUN . /virtualenv/$VENV/bin/activate \
       numpy==1.24.4 \
       oauthlib==3.2.2 \
       pbr==5.11.1 \
-      pip==21.3.1 \
+      pip==23.3.1 \
       pycparser==2.21 \
       pyparsing==3.0.9 \
       PySocks==1.7.1 \
-      requests==2.27.1 \
+      requests==2.31.0 \
       SecretStorage==3.3.3 \
       setuptools==59.6.0 \
       six==1.16.0 \
@@ -643,15 +643,17 @@ RUN . /virtualenv/$VENV/bin/activate \
       argon2-cffi-bindings==21.2.0 \
       arrow==1.2.3 \
       astroid==2.11.7 \
+      asttokens==2.4.1 \
       astunparse==1.6.3 \
       async-generator==1.10 \
+      async-lru==2.0.4 \
       attrs==22.2.0 \
       Babel==2.11.0 \
       backcall==0.2.0 \
       binaryornot==0.4.4 \
       bleach==4.1.0 \
       blis==0.7.9 \
-      bokeh==2.3.3 \
+      bokeh==3.1.1 \
       cached-property==1.5.2 \
       cachetools==4.2.4 \
       catalogue==2.0.8 \
@@ -661,11 +663,14 @@ RUN . /virtualenv/$VENV/bin/activate \
       click==8.0.4 \
       cloudpickle==2.2.0 \
       cmake==3.27.6 \
+      comm==0.1.4 \
       confection==0.0.4 \
       contextvars==2.4 \
+      contourpy==1.1.1 \
       cookiecutter==1.7.3 \
       cycler==0.11.0 \
       cymem==2.0.7 \
+      debugpy==1.8.0 \
       decorator==4.4.2 \
       defusedxml==0.7.1 \
       Deprecated==1.2.13 \
@@ -675,22 +680,26 @@ RUN . /virtualenv/$VENV/bin/activate \
       docutils==0.18.1 \
       entrypoints==0.4 \
       evdev==1.6.1 \
+      execnb==0.1.5 \
+      executing==2.0.0 \
       fastai==2.7.12 \
       fastbook==0.0.20 \
       fastcore==1.5.29 \
       fastdownload==0.0.7 \
+      fastjsonschema==2.18.1 \
       fastprogress==1.0.3 \
       fastrelease==0.1.17 \
       flatbuffers==2.0.7 \
+      fqdn==1.5.1 \
       future==0.18.2 \
       gast==0.4.0 \
-      ghapi==0.1.22 \
+      ghapi==1.0.4 \
       google-auth==2.16.2 \
       google-auth-oauthlib==1.0.0 \
       google-pasta==0.2.0 \
       graphviz==0.19.1 \
       grpcio==1.48.2 \
-      gym==0.26.2 \
+      gym==0.22.0 \
       gym-notices==0.0.8 \
       h5py==3.9.0 \
       imagecorruptions==1.1.2 \
@@ -698,10 +707,12 @@ RUN . /virtualenv/$VENV/bin/activate \
       imageio-ffmpeg==0.4.8 \
       imgaug==0.4.0 \
       immutables==0.19 \
-      ipykernel==5.5.6 \
-      ipython==7.16.3 \
+      ipyevents==2.0.2 \
+      ipykernel==6.26.0 \
+      ipython==8.12.3 \
       ipython-genutils==0.2.0 \
-      ipywidgets==7.7.4 \
+      ipywidgets==8.0.4 \
+      isoduration==20.11.0 \
       isort==5.10.1 \
       jedi==0.17.2 \
       Jetson.GPIO==2.1.2 \
@@ -709,18 +720,23 @@ RUN . /virtualenv/$VENV/bin/activate \
       jinja2-time==0.2.0 \
       joblib==1.1.1 \
       json5==0.9.11 \
-      jsonschema==3.2.0 \
+      jsonpointer==2.4 \
+      jsonschema==4.19.1 \
+      jsonschema-specifications==2023.7.1 \
       jupyter==1.0.0 \
-      jupyter-bokeh==3.0.3 \
-      jupyter-client==6.1.12 \
+      jupyter-bokeh==3.0.7 \
+      jupyter_client==8.5.0 \
       jupyter-console==6.4.2 \
-      jupyter-core==4.9.2 \
-      jupyterlab==3.2.9 \
-      jupyterlab-pygments==0.1.2 \
-      jupyterlab-server==2.10.3 \
-      jupyterlab-widgets==1.1.3 \
+      jupyter_core==5.4.0 \
+      jupyter-events==0.8.0 \
+      jupyter-lsp==2.2.0 \
       jupyter-packaging==0.10.6 \
-      jupyter-server==1.13.1 \
+      jupyter_server==2.9.1 \
+      jupyter_server_terminals==0.4.4 \
+      jupyterlab==4.0.7 \
+      jupyterlab-pygments==0.1.2 \
+      jupyterlab_server==2.25.0 \
+      jupyterlab-widgets==3.0.9 \
       keras==2.7.0 \
       Keras-Applications==1.0.8 \
       Keras-Preprocessing==1.1.2 \
@@ -737,21 +753,23 @@ RUN . /virtualenv/$VENV/bin/activate \
       Markdown==3.3.7 \
       MarkupSafe==2.0.1 \
       matplotlib==3.3.4 \
+      matplotlib-inline==0.1.6 \
       mccabe==0.7.0 \
-      mistune==0.8.4 \
+      mistune==3.0.2 \
       mock==3.0.5 \
       moviepy==1.0.3 \
       mpmath==1.3.0 \
       murmurhash==1.0.8 \
-      nbclassic==0.3.5 \
+      nbclassic==1.0.0 \
       nbclient==0.5.9 \
-      nbconvert==5.6.1 \
-      nbdev==1.1.23 \
-      nbformat==5.1.3 \
+      nbconvert==7.9.2 \
+      nbdev==2.3.13 \
+      nbformat==5.9.2 \
       nest-asyncio==1.5.6 \
       netron==7.2.3 \
       networkx==3.1 \
       notebook==6.4.10 \
+      notebook_shim==0.2.3 \
       nvidia-cuda-cupti-cu11==11.7.101 \
       nvidia-cuda-nvrtc-cu11==11.8.89 \
       nvidia-cuda-runtime-cu11==11.7.99 \
@@ -765,18 +783,20 @@ RUN . /virtualenv/$VENV/bin/activate \
       onnx==1.11.0 \
       opencv-python==4.8.1.78 \
       opt-einsum==3.3.0 \
+      overrides==7.4.0 \
       packaging==21.3 \
       paho-mqtt==1.6.1 \
-      pandas==1.1.5 \
+      pandas==2.0.3 \
       pandocfilters==1.5.0 \
       parso==0.7.1 \
       pathy==0.10.1 \
       pexpect==4.8.0 \
       pgi==0.0.11.2 \
       pickleshare==0.7.5 \
-      Pillow==9.4.0 \
+      Pillow==10.1.0 \
       pkgconfig==1.5.5 \
-      platformdirs==2.4.0 \
+      pkgutil_resolve_name==1.3.10 \
+      platformdirs==3.11.0 \
       plotly==5.13.1 \
       poyo==0.5.0 \
       preshed==3.0.8 \
@@ -788,6 +808,7 @@ RUN . /virtualenv/$VENV/bin/activate \
       protobuf==3.19.6 \
       psutil==5.9.2 \
       ptyprocess==0.7.0 \
+      pure-eval==0.2.2 \
       pyasn1==0.4.8 \
       pyasn1-modules==0.2.8 \
       pybind11==2.10.4 \
@@ -805,6 +826,7 @@ RUN . /virtualenv/$VENV/bin/activate \
       pyrsistent==0.18.0 \
       pyserial==3.5 \
       python-dateutil==2.8.2 \
+      python-json-logger==2.0.7 \
       python-slugify==6.1.2 \
       pytools==2022.1.12 \
       pytorchcv==0.0.67 \
@@ -815,15 +837,19 @@ RUN . /virtualenv/$VENV/bin/activate \
       pyzmq==25.0.2 \
       qtconsole==5.2.2 \
       QtPy==2.0.1 \
+      referencing==0.30.2 \
       reportlab==3.6.8 \
       requests-oauthlib==1.3.1 \
+      rfc3339-validator==0.1.4 \
+      rfc3986-validator==0.1.1 \
+      rpds-py==0.10.6 \
       RPi.GPIO==0.7.1 \
       rsa==4.9 \
       scikit-image==0.21.0 \
       scikit-learn==1.3.0 \
       scipy==1.10.1 \
       seaborn==0.11.2 \
-      Send2Trash==1.8.0 \
+      Send2Trash==1.8.2 \
       sentencepiece==0.1.97 \
       Shapely==1.8.5.post1 \
       simple-pid==1.0.1 \
@@ -835,6 +861,7 @@ RUN . /virtualenv/$VENV/bin/activate \
       spacy-loggers==1.0.4 \
       spidev==3.5 \
       srsly==2.4.6 \
+      stack-data==0.6.3 \
       sympy==1.12 \
       tabulate==0.8.10 \
       tenacity==8.2.2 \
@@ -853,22 +880,28 @@ RUN . /virtualenv/$VENV/bin/activate \
       thop==0.1.1.post2209072238 \
       threadpoolctl==3.1.0 \
       tifffile==2023.7.10 \
+      tinycss2==1.2.1 \
       tomli==1.2.3 \
       tomlkit==0.11.6 \
-      torch==2.0.1 \
-      torchvision==0.15.2 \
-      tornado==6.1 \
-      traitlets==4.3.3 \
+      torch==2.0.1+rocm5.4.2 \
+      torchvision==0.15.2+rocm5.4.2 \
+      tornado==6.3.3 \
+      traitlets==5.12.0 \
       triton==2.0.0 \
       typed-ast==1.5.4 \
       typer==0.7.0 \
+      tzdata==2023.3 \
+      uri-template==1.3.0 \
       wasabi==1.1.1 \
+      watchdog==3.0.0 \
       wcwidth==0.2.6 \
+      webcolors==1.13 \
       webencodings==0.5.1 \
       websocket-client==1.3.1 \
       Werkzeug==2.0.3 \
-      widgetsnbextension==3.6.3 \
+      widgetsnbextension==4.0.9 \
       wrapt==1.14.1 \
+      xyzservices==2023.10.1 \
       -f https://download.pytorch.org/whl/torch_stable.html
 
 
@@ -901,22 +934,6 @@ RUN curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash - \
 
 
 ########################################
-# jupyter_clickable_image_widget
-########################################
-RUN . /virtualenv/$VENV/bin/activate \
-    && mkdir -p ~/github \
-    && cd ~/github \
-    && git clone -b jupyterlab-3 https://github.com/naisy/jupyter_clickable_image_widget \
-    && cd jupyter_clickable_image_widget/js \
-    && npm install -D webpack-cli@5.1.4 \
-    && cd .. \
-    && pip install -e . \
-    && jupyter labextension install @jupyter-widgets/jupyterlab-manager@3.0.0 \
-    && jupyter labextension install js \
-    && jupyter-lab build
-
-
-########################################
 # Jupyter Lab 設定
 ########################################
 RUN . /virtualenv/$VENV/bin/activate \
@@ -929,7 +946,12 @@ RUN . /virtualenv/$VENV/bin/activate \
     # Jupyter Lab password 設定
     ####################
     && mkdir -p $HOME/.jupyter \
-    && python -c "from notebook.auth.security import set_password; set_password('jupyter', '$HOME/.jupyter/jupyter_notebook_config.json')" \
+    && export PASSWORD_HASH=`python -c 'from argon2 import PasswordHasher;print(PasswordHasher(memory_cost=10240,time_cost=10,parallelism=8).hash("jupyter"))'` \
+    && echo '{\n\
+  "IdentityProvider": {\n\
+    "hashed_password": "argon2:'$PASSWORD_HASH'"\n\
+  }\n\
+}' > $HOME/.jupyter/jupyter_server_config.json \
     ####################
     # Disable Jupyter autosave
     ####################

@@ -52,6 +52,7 @@ ARG VENV=python3
 # DonkeyCar OVERDRIVE4
 ########################################
 RUN . /virtualenv/$VENV/bin/activate \
+    && mkdir -p ~/github \
     && cd ~/github \
     && git clone -b overdrive4 https://github.com/naisy/donkeycar \
     && git clone https://github.com/naisy/overdrive \
