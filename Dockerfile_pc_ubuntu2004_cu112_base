@@ -783,6 +783,7 @@ RUN . /virtualenv/$VENV/bin/activate \
       onnx==1.11.0 \
       opencv-python==4.8.1.78 \
       opt-einsum==3.3.0 \
+      orjson==3.9.10 \
       overrides==7.4.0 \
       packaging==21.3 \
       paho-mqtt==1.6.1 \
