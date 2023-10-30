@@ -989,25 +989,30 @@ RUN . /virtualenv/$VENV/bin/activate \
     # ファイル名がわからん。インストールで変わる。
     # find /usr/local/share/jupyter/lab/static/ -type f | xargs grep -l "#2e3436"
     # /usr/local/share/jupyter/lab/static/vendors~main.23ff2294e1453ac6af20.js
+    # locate /virtualenv/python3 | grep "\.js$"  | xargs -I {} grep -l "#ad7fa8" {}
     #export JUPYTER_TERMINAL_COLOR_FILE=`find /usr/local/share/jupyter/lab/static/ -type f -name "*\.js" | xargs -I {} grep -l "#3465a4" {}` \
-    && export JUPYTER_TERMINAL_COLOR_FILE=`find /virtualenv/$VENV/share/jupyter/lab/static/ -type f -name "*\.js" | xargs -I {} grep -l "#3465a4" {}` \
-    && sed -i 's/#2e3436/#000000/g' $JUPYTER_TERMINAL_COLOR_FILE \
-    && sed -i 's/#cc0000/#cd0000/g' $JUPYTER_TERMINAL_COLOR_FILE \
-    && sed -i 's/#4e9a06/#00cd00/g' $JUPYTER_TERMINAL_COLOR_FILE \
-    && sed -i 's/#c4a000/#cdcd00/g' $JUPYTER_TERMINAL_COLOR_FILE \
-    && sed -i 's/#3465a4/#add8e6/g' $JUPYTER_TERMINAL_COLOR_FILE \
-    && sed -i 's/#75507b/#cd00cd/g' $JUPYTER_TERMINAL_COLOR_FILE \
-    && sed -i 's/#06989a/#00cdcd/g' $JUPYTER_TERMINAL_COLOR_FILE \
-    && sed -i 's/#d3d7cf/#faebd7/g' $JUPYTER_TERMINAL_COLOR_FILE \
-    && sed -i 's/#555753/#404040/g' $JUPYTER_TERMINAL_COLOR_FILE \
-    && sed -i 's/#ef2929/#ff0000/g' $JUPYTER_TERMINAL_COLOR_FILE \
-    && sed -i 's/#8ae234/#00ff00/g' $JUPYTER_TERMINAL_COLOR_FILE \
-    && sed -i 's/#fce94f/#ffff00/g' $JUPYTER_TERMINAL_COLOR_FILE \
-    && sed -i 's/#729fcf/#7fffd4/g' $JUPYTER_TERMINAL_COLOR_FILE \
-    && sed -i 's/#ad7fa8/#ff00ff/g' $JUPYTER_TERMINAL_COLOR_FILE \
-    && sed -i 's/#34e2e2/#00ffff/g' $JUPYTER_TERMINAL_COLOR_FILE \
-    && sed -i 's/#eeeeec/#ffffff/g' $JUPYTER_TERMINAL_COLOR_FILE
-
+    #&& export JUPYTER_TERMINAL_COLOR_FILE=`find /virtualenv/$VENV/share/jupyter/lab/static/ -type f -name "*\.js" | xargs -I {} grep -l "#3465a4" {}` \
+    && sh -c '\
+       JUPYTER_TERMINAL_COLOR_FILE=$(find /virtualenv/$VENV/ -type f -name "*\.js" | xargs -I {} grep -l "#3465a4" {}); \
+       for file in $JUPYTER_TERMINAL_COLOR_FILE; do \
+          sed -i 's/#2e3436/#000000/g' $file; \
+          sed -i 's/#cc0000/#cd0000/g' $file; \
+          sed -i 's/#4e9a06/#00cd00/g' $file; \
+          sed -i 's/#c4a000/#cdcd00/g' $file; \
+          sed -i 's/#3465a4/#add8e6/g' $file; \
+          sed -i 's/#75507b/#cd00cd/g' $file; \
+          sed -i 's/#06989a/#00cdcd/g' $file; \
+          sed -i 's/#d3d7cf/#faebd7/g' $file; \
+          sed -i 's/#555753/#404040/g' $file; \
+          sed -i 's/#ef2929/#ff0000/g' $file; \
+          sed -i 's/#8ae234/#00ff00/g' $file; \
+          sed -i 's/#fce94f/#ffff00/g' $file; \
+          sed -i 's/#729fcf/#7fffd4/g' $file; \
+          sed -i 's/#ad7fa8/#ff00ff/g' $file; \
+          sed -i 's/#34e2e2/#00ffff/g' $file; \
+          sed -i 's/#eeeeec/#ffffff/g' $file; \
+       done \
+'
 
 
 ########################################
