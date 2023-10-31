@@ -43,7 +43,7 @@ Default pass: jupyter
 | Jetson JetPack 4.6.1 | naisy/jetson-jp461-jetracer-ai86 | run-jetson-jp461-ip-address.sh | 14.3GB | 20231031 |
 | Jetson JetPack 4.6.1 | naisy/jetson-jp461-donkeycar50 | run-jetson-jp461-donkeycar50.sh | 14.4GB | 20230830 |
 | Jetson JetPack 4.6.1 | naisy/jetson-jp461-donkeycar45 | run-jetson-jp461-donkeycar45.sh | 14.4GB | 20230830 |
-| Jetson JetPack 4.6.1 | naisy/jetson-jp461-donkeycar-overdrive4 | run-jetson-jp461-donkeycar-overdrive4.sh | 14.4GB | 20230901 |
+| Jetson JetPack 4.6.1 | naisy/jetson-jp461-donkeycar-overdrive4 | run-jetson-jp461-donkeycar-overdrive4.sh | 14.4GB | 20231031 |
 | Jetson JetPack 4.6.1 | naisy/jetson-jp461-donkeycar-overdrive3 | run-jetson-jp461-donkeycar-overdrive3.sh | 15.6GB | 20230830 |
 | Jetson JetPack 4.6.1 | naisy/jetson-jp461-deepstream601-triton-base | run-jetson-jp461-base.sh | 14.2GB | 20230830 |
 | Jetson JetPack 4.6.1 | naisy/jetson-jp461-ros-melodic-blam | run-jetson-jp461-ros-melodic-blam.sh | 8.33GB | 20230410 |

@@ -60,7 +60,7 @@ RUN . /virtualenv/$VENV/bin/activate \
     && git clone https://github.com/tawnkramer/gym-donkeycar \
     && cd gym-donkeycar \
     && sed -i 's/python_requires=">=3\.7"/python_requires=">=3.6"/g' setup.py \
-    && sed -i 's|^requirements = \["gym==0.21", "numpy", "pillow"\]|requirements = []|g' setup.py \
+    && sed -i 's|^requirements = \["gym==0.22", "numpy", "pillow"\]|requirements = []|g' setup.py \
     && pip install -e .
 
 
