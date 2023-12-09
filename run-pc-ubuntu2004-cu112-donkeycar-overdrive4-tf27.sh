@@ -77,4 +77,4 @@ docker run \
     --privileged \
     --network=host \
 $IMG \
-bash -c "source /virtualenv/python3/bin/activate && jupyter lab --ip=0.0.0.0 --port=$PORT --no-browser --ServerApp.root_dir=/ --LabApp.default_url=/lab?file-browser-path=$HOST_USER_HOME"
+bash -c "source /virtualenv/python3/bin/activate && jupyter lab --ip=0.0.0.0 --port=$PORT --no-browser --ServerApp.iopub_msg_rate_limit=10000 --ServerApp.iopub_data_rate_limit=10000000 --ServerApp.root_dir=/ --LabApp.default_url=/lab?file-browser-path=$HOST_USER_HOME"
