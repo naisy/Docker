@@ -44,6 +44,13 @@ ARG OPENBLAS_CORETYPE=ARMV8
 ARG VENV=python3
 
 
+# jupyterlab mouse click event
+RUN . /virtualenv/$VENV/bin/activate \
+    && pip install --no-deps \
+      ipyevents==2.0.2 \
+      orjson==3.6.1
+
+
 ########################################
 # DonkeyCar OVERDRIVE4
 ########################################
@@ -54,6 +61,7 @@ RUN . /virtualenv/$VENV/bin/activate \
     && git clone https://github.com/naisy/donkeycar_tools \
     && cd donkeycar \
     && pip install -e .[nano]
+
 
 RUN . /virtualenv/$VENV/bin/activate \
     && cd ~/github \
