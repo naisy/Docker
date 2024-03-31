@@ -7,7 +7,7 @@ if [ "$EUID" -ne 0 ]; then
   exit            # exit this user script
 fi
 
-IMG=nvcr.io/nvidia/l4t-base:r32.7.1
+IMG=nvcr.io/nvidia/l4t-base:35.3.1
 
 docker run \
     --restart always \
