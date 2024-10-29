@@ -26,6 +26,7 @@ docker run `
     -e QT_GRAPHICSSYSTEM=native `
     -e QT_X11_NO_MITSHM=1 `
     -e TF_FORCE_GPU_ALLOW_GROWTH=true `
+    -e HF_HOME=$DOCKER_MOUNT_PATH/.cache/huggingface `
     -e SHELL=/bin/bash `
     -e TZ=Asia/Tokyo `
     --network=host `

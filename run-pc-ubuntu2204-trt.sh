@@ -81,6 +81,7 @@ docker run \
     -e QT_X11_NO_MITSHM=1 \
     -e TF_FORCE_GPU_ALLOW_GROWTH=true \
     -e SHELL=/bin/bash \
+    -e HF_HOME=$DOCKER_MOUNT_PATH/.cache/huggingface \
     --mount type=bind,source=/var/run/dbus/system_bus_socket,target=/var/run/dbus/system_bus_socket,readonly \
     --mount type=bind,source=/etc/localtime,target=/etc/localtime,readonly \
     --mount type=bind,source=/dev/,target=/dev/ \

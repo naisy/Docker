@@ -594,7 +594,7 @@ RUN mkdir -p ~/github \
     && sudo apt-get update \
     && sudo apt-get remove -y \
       cmake \
-    && git clone https://github.com/Kitware/CMake.git --depth 1 -b v3.28.3 \
+    && git clone https://github.com/Kitware/CMake.git --depth 1 -b v3.30.5 \
     && cd CMake \
     && ./bootstrap --system-curl \
     && make -j$(nproc) \
@@ -659,7 +659,7 @@ RUN . /virtualenv/$VENV/bin/activate \
       numpy==1.24.4 \
       oauthlib==3.2.2 \
       pbr==6.0.0 \
-      pip==24.2 \
+      pip==24.3.1 \
       pycparser==2.21 \
       pyparsing==3.1.2 \
       PySocks==1.7.1 \
@@ -714,7 +714,7 @@ RUN . /virtualenv/$VENV/bin/activate \
         matplotlib  \
         Pillow \
         regex \
-        transformers==4.32.0 \
+        transformers \
       # Prolog
         pyswip \
       # PlantUML \
@@ -749,6 +749,12 @@ RUN . /virtualenv/$VENV/bin/activate \
         jax==0.4.29 \
         jaxlib==0.4.29+cuda12.cudnn91 \
         git+https://github.com/google-deepmind/optax.git \
+        datasets \
+        mecab-python3 \
+        unidic-lite \
+        pynvml \
+        deepspeed \
+        seaborn \
       # Torch
         pytools==2024.1.13 \
         pycairo==1.20.1 \
@@ -902,3 +908,4 @@ RUN . /virtualenv/$VENV/bin/activate \
 RUN . /virtualenv/$VENV/bin/activate \
     && python -c "import torchvision; \
          model = torchvision.models.resnet18(weights=torchvision.models.ResNet18_Weights.DEFAULT);"
+
