@@ -434,6 +434,7 @@ RUN apt-get update \
       gir1.2-gstreamer-1.0 \
       gir1.2-gtk-3.0 \
       git \
+      git-lfs \
       gnupg2 \
       hdf5-tools \
       htop \
@@ -764,6 +765,7 @@ RUN . /virtualenv/$VENV/bin/activate \
         torchvision \
         torchaudio \
         xformers \
+        vllm \
       -f https://download.pytorch.org/whl/cu124 \
       -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html 
 
@@ -901,6 +903,14 @@ RUN . /virtualenv/$VENV/bin/activate \
     && cd torch2trt \
     && pip install -e .
 
+########################################
+# llama.cpp
+########################################
+RUN . /virtualenv/$VENV/bin/activate \
+    && mkdir -p ~/github \
+    && cd ~/github \
+    && git clone https://github.com/ggerganov/llama.cpp
+
 
 ########################################
 # models
@@ -908,4 +918,3 @@ RUN . /virtualenv/$VENV/bin/activate \
 RUN . /virtualenv/$VENV/bin/activate \
     && python -c "import torchvision; \
          model = torchvision.models.resnet18(weights=torchvision.models.ResNet18_Weights.DEFAULT);"
-
