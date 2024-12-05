@@ -24,6 +24,7 @@ docker run `
     --mount "type=bind,source=/dev/,target=/dev/" `
     -e "DISPLAY=$DISPLAY" `
     -e "QT_GRAPHICSSYSTEM=native" `
+    -e "CUDA_VISIBLE_DEVICES=-1" `
     -e "QT_X11_NO_MITSHM=1" `
     -e "TF_FORCE_GPU_ALLOW_GROWTH=true" `
     -e "SHELL=/bin/bash" `
