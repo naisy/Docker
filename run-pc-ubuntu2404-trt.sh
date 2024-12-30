@@ -65,7 +65,7 @@ fi
 ########################################
 # docker image
 ########################################
-IMG=naisy/pc-ubuntu2204-trt-base
+IMG=naisy/pc-ubuntu2404-trt-base
 PORT=8888
 NAME='trt'
 
@@ -87,9 +87,11 @@ docker run \
     --mount type=bind,source=/dev/,target=/dev/ \
     -u $DOCKER_USER \
     --privileged \
+    -e TZ=Asia/Tokyo \
     --network=host \
     --name $NAME \
 $IMG \
 bash -c "source /virtualenv/python3/bin/activate && jupyter lab --ip=0.0.0.0 --port=$PORT --no-browser --ServerApp.iopub_msg_rate_limit=10000 --ServerApp.iopub_data_rate_limit=10000000 --ServerApp.root_dir=/ --LabApp.default_url=/lab?file-browser-path=$HOST_USER_HOME"
 
 chown $EXEC_USER:$EXEC_USER_GROUP $EXEC_USER_HOME/$XAUTH_FILE
+
