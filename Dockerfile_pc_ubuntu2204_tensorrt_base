@@ -741,7 +741,7 @@ RUN . /virtualenv/$VENV/bin/activate \
         bitsandbytes \
         accelerate \
         sentencepiece \
-        peft==0.9.0 \
+        peft==0.14.0 \
         trl \
         emoji \
         neologdn \
@@ -756,6 +756,8 @@ RUN . /virtualenv/$VENV/bin/activate \
         pynvml \
         deepspeed \
         seaborn \
+	sentence_transformers \
+	nGPT-pytorch \
       # Torch
         pytools==2024.1.13 \
         pycairo==1.20.1 \
@@ -766,6 +768,9 @@ RUN . /virtualenv/$VENV/bin/activate \
         torchaudio \
         xformers \
         vllm \
+      # OCR
+        easyocr \
+      # LLM
       -f https://download.pytorch.org/whl/cu124 \
       -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html 
 
@@ -918,3 +923,4 @@ RUN . /virtualenv/$VENV/bin/activate \
 RUN . /virtualenv/$VENV/bin/activate \
     && python -c "import torchvision; \
          model = torchvision.models.resnet18(weights=torchvision.models.ResNet18_Weights.DEFAULT);"
+

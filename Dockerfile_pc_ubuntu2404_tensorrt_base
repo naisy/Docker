@@ -771,6 +771,8 @@ RUN . /virtualenv/$VENV/bin/activate \
         torchaudio \
         xformers \
         vllm \
+      # OCR
+        easyocr \
       # LLM
       -f https://download.pytorch.org/whl/cu124 \
       -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html 
