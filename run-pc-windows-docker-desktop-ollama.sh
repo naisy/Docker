@@ -1,10 +1,11 @@
 # 必要な変数を設定
+# 前提：wslでUbuntu-22.04を作成してデフォルトに設定しておく
 
 $IMG = 'ollama/ollama'
 $PORT = 11434  # ollamaが動作するポート番号 (http://localhost:11434)
 $NAME = 'ollama'  # Dockerコンテナ名 重複起動しないようにユニークな名前を付けておく
 $WINDOWS_HOST_MOUNT_PATH = 'C:/App/data'  # C:/App/dataフォルダをDockerコンテナの/root/windows_data ($HOME/windows_data)としてマウントする
-$UBUNTU_HOST_MOUNT_PATH = '/mnt/wsl/data'  # ベースUbuntuのディレクトリをDockerコンテナの/root/ubuntu_data ($HOME/ubuntu_data)としてマウントする
+$UBUNTU_HOST_MOUNT_PATH = '/home/ubuntu/data'  # 自動作成されたdocker-desktopは16GBなので不適切。そのためUbuntuのディレクトリをDockerコンテナの/root/ubuntu_data ($HOME/ubuntu_data)としてマウントする
 $DOCKER_WINDOWS_HOST_MOUNT_PATH = "/root/windows_data"
 $DOCKER_UBUNTU_HOST_MOUNT_PATH = "/root/ubuntu_data"
 $OLLAMA_MODELS = "$DOCKER_UBUNTU_HOST_MOUNT_PATH/ollama/models"
