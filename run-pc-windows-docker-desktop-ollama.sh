@@ -1,0 +1,49 @@
+# 必要な変数を設定
+
+$IMG = 'ollama/ollama'
+$PORT = 11434  # ollamaが動作するポート番号 (http://localhost:11434)
+$NAME = 'ollama'  # Dockerコンテナ名 重複起動しないようにユニークな名前を付けておく
+$WINDOWS_HOST_MOUNT_PATH = 'C:/App/data'  # C:/App/dataフォルダをDockerコンテナの/root/windows_data ($HOME/windows_data)としてマウントする
+$UBUNTU_HOST_MOUNT_PATH = '/mnt/wsl/data'  # ベースUbuntuのディレクトリをDockerコンテナの/root/ubuntu_data ($HOME/ubuntu_data)としてマウントする
+$DOCKER_WINDOWS_HOST_MOUNT_PATH = "/root/windows_data"
+$DOCKER_UBUNTU_HOST_MOUNT_PATH = "/root/ubuntu_data"
+$OLLAMA_MODELS = "$DOCKER_UBUNTU_HOST_MOUNT_PATH/ollama/models"
+
+# Windowsホスト側のディレクトリが存在しない場合、作成する
+if (-not (Test-Path -Path $WINDOWS_HOST_MOUNT_PATH)) {
+    New-Item -ItemType Directory -Path $WINDOWS_HOST_MOUNT_PATH
+}
+
+# Ubuntuホスト側のディレクトリが存在しない場合、作成する
+wsl mkdir -p $UBUNTU_HOST_MOUNT_PATH
+
+# WSL2 のパスを Windows 形式に変換
+$WSL2_HOST_MOUNT_PATH = wsl wslpath -w $UBUNTU_HOST_MOUNT_PATH
+
+# モデルをスタンバイ状態にし続ける場合
+# Windows Docker DesktopではUbuntu FileSystemとWindows FileSystemの間の変換が遅いため、モデルロードが遅くなる。
+# そこで、Ubuntuでマウント用のディレクトリを作成してWSL2でマウントパスを取得
+# そこにOLLAMA_MODELSを設定することで、FileSystem違いによるモデルロードのI/O問題を解決したため、モデルをスタンバイ状態にし続ける必要はなくなった。
+#    -e OLLAMA_KEEP_ALIVE=-1 `
+
+docker run `
+    --gpus all `
+    --restart always `
+    -itd `
+    --mount "type=bind,source=$WINDOWS_HOST_MOUNT_PATH,target=$DOCKER_WINDOWS_HOST_MOUNT_PATH" `
+    --mount "type=bind,source=$WSL2_HOST_MOUNT_PATH,target=$DOCKER_UBUNTU_HOST_MOUNT_PATH" `
+    --mount type=bind,source=/dev/,target=/dev/ `
+    -e QT_GRAPHICSSYSTEM=native `
+    -e HF_HOME=$DOCKER_UBUNTU_HOST_MOUNT_PATH/.cache/huggingface `
+    -e SHELL=/bin/bash `
+    -e TZ=Asia/Tokyo `
+    -e OLLAMA_MODELS=$OLLAMA_MODELS `
+    -e OLLAMA_HOST=0.0.0.0 `
+    -e OLLAMA_DEBUG=1 `
+    -e OLLAMA_CUDA=1 `
+    -e OLLAMA_FLASH_ATTE=1 `
+    -e OLLAMA_LOAD_TIMEOUT=-1 `
+    --network=host `
+    --name $NAME `
+    $IMG `
+
