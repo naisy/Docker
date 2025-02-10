@@ -588,7 +588,7 @@ set background=dark'\
 
 
 ########################################
-# CMake 3.28.3
+# CMake 3.31.4
 ########################################
 USER $USERNAME
 RUN mkdir -p ~/github \
@@ -596,7 +596,7 @@ RUN mkdir -p ~/github \
     && sudo apt-get update \
     && sudo apt-get remove -y \
       cmake \
-    && git clone https://github.com/Kitware/CMake.git --depth 1 -b v3.30.5 \
+    && git clone https://github.com/Kitware/CMake.git --depth 1 -b v3.31.4 \
     && cd CMake \
     && ./bootstrap --system-curl \
     && make -j$(nproc) \
