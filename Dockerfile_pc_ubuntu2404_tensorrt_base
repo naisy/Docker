@@ -409,7 +409,7 @@ EXEC 01;31\n\
 # Default Command
 ########################################
 #CMD bash -c "/usr/bin/xterm -fa 'Monospace' -fs 10"
-CMD bash -c "/bin/bash"
+#CMD bash -c "/bin/bash"
 
 
 ### END GUI ###
@@ -426,7 +426,6 @@ RUN apt-get update \
       libgstrtspserver-1.0-dev \
     && apt autoremove -y \
     && rm -rf /var/lib/apt/lists/*
-
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
       arp-scan \
@@ -434,6 +433,7 @@ RUN apt-get update \
       colortest \
       curl \
       dialog \
+      fonts-noto-cjk \
       g++ \
       gcc \
       gfortran \
@@ -590,7 +590,7 @@ set background=dark'\
 
 
 ########################################
-# CMake 3.31.3
+# CMake 3.31.4
 ########################################
 USER $USERNAME
 RUN mkdir -p ~/github \
@@ -598,7 +598,7 @@ RUN mkdir -p ~/github \
     && sudo apt-get update \
     && sudo apt-get remove -y \
       cmake \
-    && git clone https://github.com/Kitware/CMake.git --depth 1 -b v3.31.3 \
+    && git clone https://github.com/Kitware/CMake.git --depth 1 -b v3.31.4 \
     && cd CMake \
     && ./bootstrap --system-curl \
     && make -j$(nproc) \
@@ -752,7 +752,7 @@ RUN . /virtualenv/$VENV/bin/activate \
       # LLM
         jax==0.4.29 \
         jaxlib==0.4.29+cuda12.cudnn91 \
-        git+https://github.com/google-deepmind/optax.git \
+        optax \
         datasets==2.21.0 \
         mecab-python3 \
         unidic-lite \
@@ -762,15 +762,15 @@ RUN . /virtualenv/$VENV/bin/activate \
 	sentence_transformers \
 	nGPT-pytorch \
       # Torch
-        pytools==2024.1.21 \
+        pytools==2025.1.1 \
         pycairo==1.27.0 \
-        pycuda==2024.1.2 \
+        pycuda==2025.1 \
         tensorrt==10.7.0 \
         torch \
         torchvision \
         torchaudio \
         xformers \
-        vllm \
+        vllm==0.7.2 \
       # OCR
         easyocr \
       # LLM

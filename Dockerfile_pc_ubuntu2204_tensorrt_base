@@ -427,6 +427,7 @@ RUN apt-get update \
       colortest \
       curl \
       dialog \
+      fonts-noto-cjk \
       g++ \
       gcc \
       gfortran \
@@ -759,15 +760,15 @@ RUN . /virtualenv/$VENV/bin/activate \
 	sentence_transformers \
 	nGPT-pytorch \
       # Torch
-        pytools==2024.1.13 \
-        pycairo==1.20.1 \
-        pycuda==2024.1.2 \
+        pytools==2025.1.1 \
+        pycairo==1.27.0 \
+        pycuda==2025.1 \
         tensorrt==10.3.0 \
         torch \
         torchvision \
         torchaudio \
         xformers \
-        vllm \
+        vllm==0.7.2 \
       # OCR
         easyocr \
       # LLM
@@ -778,7 +779,6 @@ RUN . /virtualenv/$VENV/bin/activate \
 
 RUN . /virtualenv/$VENV/bin/activate \
     && pip install --no-cache-dir \
-        datasets==2.21.0 \
         flash_attn
 
 
