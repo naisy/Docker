@@ -690,6 +690,7 @@ RUN . /virtualenv/$VENV/bin/activate \
         Jinja2 \
         zmq \
         argon2_cffi \
+        jupyter_kernel_gateway \
       # Generative AI \
         boto3 \
         langchain \
