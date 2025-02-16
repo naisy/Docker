@@ -91,7 +91,13 @@ docker run \
     --network=host \
     --name $NAME \
 $IMG \
-bash -c "source /virtualenv/python3/bin/activate && jupyter kernelgateway --port=$PORT --ip=0.0.0.0 --KernelGatewayApp.auth_token=''"
+bash -c "source /virtualenv/python3/bin/activate && \
+cd $DOCKER_USER_HOME && \
+jupyter kernelgateway --port=$PORT --ip=0.0.0.0 \
+--KernelGatewayApp.auth_token='' \
+--ServerApp.root_dir='/' \
+--ServerApp.iopub_msg_rate_limit=10000 \
+--ServerApp.iopub_data_rate_limit=10000000"
 
 chown $EXEC_USER:$EXEC_USER_GROUP $EXEC_USER_HOME/$XAUTH_FILE
 
