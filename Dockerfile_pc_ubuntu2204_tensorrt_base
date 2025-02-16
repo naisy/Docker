@@ -937,7 +937,7 @@ RUN . /virtualenv/$VENV/bin/activate \
     && sudo apt-get install -y --no-install-recommends \
       fonts-liberation \
     && wget -O /tmp/google-chrome-stable_current_amd64.deb https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb \
-    && sudo dpkg -i /tmp/google-chrome-stable_current_amd64.deb || apt-get -f install -y \
+    && sudo dpkg -i /tmp/google-chrome-stable_current_amd64.deb || sudo apt-get -f install -y \
     && rm -f /tmp/google-chrome-stable_current_amd64.deb \
     && CHROME_VERSION=$(google-chrome --version | awk '{print $3}') \
     && wget -O /tmp/chromedriver-linux64.zip "https://storage.googleapis.com/chrome-for-testing-public/${CHROME_VERSION}/linux64/chromedriver-linux64.zip" \
@@ -946,4 +946,17 @@ RUN . /virtualenv/$VENV/bin/activate \
     && rm -rf /tmp/chromedriver-linux64.zip \
     && sudo apt autoremove -y \
     && sudo rm -rf /var/lib/apt/lists/*
+
+
+########################################
+# supervisor
+########################################
+RUN sudo apt-get update \
+    && sudo apt-get install -y --no-install-recommends \
+      supervisor \
+    && sudo apt autoremove -y \
+    && sudo rm -rf /var/lib/apt/lists/* \
+    && sudo mkdir -p /var/log/supervisor \
+    && sudo chown -R $USERNAME:$USERNAME /var/log/supervisor \
+    && sudo chmod -R 755 /var/log/supervisor
 
