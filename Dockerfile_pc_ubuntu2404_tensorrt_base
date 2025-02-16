@@ -927,3 +927,25 @@ RUN . /virtualenv/$VENV/bin/activate \
     && python -c "import torchvision; \
          model = torchvision.models.resnet18(weights=torchvision.models.ResNet18_Weights.DEFAULT);"
 
+
+########################################
+# Google Chrome
+########################################
+RUN . /virtualenv/$VENV/bin/activate \
+    && pip install --no-cache-dir \
+      selenium \
+      webdriver-manager \
+    && sudo apt-get update \
+    && sudo apt-get install -y --no-install-recommends \
+      fonts-liberation \
+    && wget -O /tmp/google-chrome-stable_current_amd64.deb https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb \
+    && sudo dpkg -i /tmp/google-chrome-stable_current_amd64.deb || sudo apt-get -f install -y \
+    && rm -f /tmp/google-chrome-stable_current_amd64.deb \
+    && CHROME_VERSION=$(google-chrome --version | awk '{print $3}') \
+    && wget -O /tmp/chromedriver-linux64.zip "https://storage.googleapis.com/chrome-for-testing-public/${CHROME_VERSION}/linux64/chromedriver-linux64.zip" \
+    && sudo unzip -j /tmp/chromedriver-linux64.zip -d /usr/local/bin/ \
+    && sudo chmod +x /usr/local/bin/chromedriver \
+    && rm -rf /tmp/chromedriver-linux64.zip \
+    && sudo apt autoremove -y \
+    && sudo rm -rf /var/lib/apt/lists/*
+
