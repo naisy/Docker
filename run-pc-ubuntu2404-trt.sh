@@ -61,7 +61,6 @@ if [ ! -d "$HOST_MOUNT_PATH" ]; then
     chown $HOST_USER:$HOST_USER_GROUP $HOST_MOUNT_PATH
 fi
 
-
 ########################################
 # docker image
 ########################################
@@ -86,12 +85,22 @@ docker run \
     --mount type=bind,source=/etc/localtime,target=/etc/localtime,readonly \
     --mount type=bind,source=/dev/,target=/dev/ \
     -u $DOCKER_USER \
+    -w $DOCKER_MOUNT_PATH \
     --privileged \
     -e TZ=Asia/Tokyo \
     --network=host \
     --name $NAME \
 $IMG \
-bash -c "source /virtualenv/python3/bin/activate && jupyter lab --ip=0.0.0.0 --port=$PORT --no-browser --ServerApp.iopub_msg_rate_limit=10000 --ServerApp.iopub_data_rate_limit=10000000 --ServerApp.root_dir=/ --LabApp.default_url=/lab?file-browser-path=$HOST_USER_HOME"
+bash -c "source /virtualenv/python3/bin/activate && \
+jupyter lab \
+--ip=0.0.0.0 --port=$PORT --no-browser \
+--ServerApp.iopub_msg_rate_limit=10000 \
+--ServerApp.iopub_data_rate_limit=10000000 \
+--ServerApp.root_dir=/ \
+--ServerApp.allow_remote_access=True \
+--ServerApp.allow_origin='*' \
+--allow-root \
+--LabApp.default_url=/lab?file-browser-path=$DOCKER_USER_HOME"
 
 chown $EXEC_USER:$EXEC_USER_GROUP $EXEC_USER_HOME/$XAUTH_FILE
 

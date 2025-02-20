@@ -86,6 +86,7 @@ docker run \
     --mount type=bind,source=/etc/localtime,target=/etc/localtime,readonly \
     --mount type=bind,source=/dev/,target=/dev/ \
     -u $DOCKER_USER \
+    -w $DOCKER_MOUNT_PATH \
     --privileged \
     -e TZ=Asia/Tokyo \
     --network=host \

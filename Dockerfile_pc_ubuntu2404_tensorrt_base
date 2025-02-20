@@ -46,7 +46,7 @@
 # lsb_release -a
 # nvcc --version
 # pip list installed
-FROM nvcr.io/nvidia/tensorrt:24.12-py3
+FROM nvcr.io/nvidia/tensorrt:25.01-py3
 
 ########################################
 # ENV
@@ -65,6 +65,7 @@ RUN rm -rf /var/lib/apt/lists/* \
     && apt-get --fix-missing update \
     && apt-get install -y \
       apt-utils \
+      apt-file \
       lsb-release \
     # change the locale from POSIX to UTF-8
     && apt-get install -y \
@@ -81,15 +82,13 @@ ENV LANG=en_US.UTF-8
 ########################################
 # CUDA library path for build environment
 ########################################
-#cat  /etc/ld.so.conf.d/x86_64-linux-gnu.conf
+#cat /etc/ld.so.conf.d/x86_64-linux-gnu.conf
 ## Multiarch support
-#/usr/local/lib/x86_64-linux-gnu
 #/lib/x86_64-linux-gnu
 #/usr/lib/x86_64-linux-gnu
 RUN echo "# Multiarch support" > /etc/ld.so.conf.d/x86_64-linux-gnu.conf \
-    && echo /usr/local/lib/x86_64-linux-gnu >> /etc/ld.so.conf.d/x86_64-linux-gnu.conf \
-    && echo /lib/x86_64-linux-gnu >> /etc/ld.so.conf.d/x86_64-linux-gnu.conf \
     && echo /usr/lib/x86_64-linux-gnu >> /etc/ld.so.conf.d/x86_64-linux-gnu.conf \
+    && echo /lib/x86_64-linux-gnu >> /etc/ld.so.conf.d/x86_64-linux-gnu.conf \
     && echo /usr/local/cuda/targets/x86_64-linux/lib >> /etc/ld.so.conf.d/x86_64-linux-gnu.conf \
     && echo /usr/local/cuda/targets/x86_64-linux/lib/stubs >> /etc/ld.so.conf.d/x86_64-linux-gnu.conf \
     && ldconfig
@@ -161,7 +160,7 @@ RUN sed -i 's/#force_color_prompt=yes/force_color_prompt=yes/g' /home/$USERNAME/
     && sed -i 's/PS1='\''\${debian_chroot:+(\$debian_chroot)}\\\[\\033\[01;32m\\\]\\u@\\h\\\[\\033\[00m\\\]:\\\[\\033\[01;34m\\\]\\w\\\[\\033\[00m\\\]\\\$ '\''/PS1='\''\${debian_chroot:+(\$debian_chroot)}\\\[\\033\[01;32m\\\]\\u@\\\[\\033\[01;31m\\\]docker-\\h\\\[\\033\[00m\\\]:\\\[\\033\[01;35m\\\]\\w\\\[\\033\[00m\\\]\\\$ '\''/g' /home/$USERNAME/.bashrc \
     && sed -i 's/alias ls='\''ls --color=auto'\''/alias ls='\''ls -asiF --color=auto'\''/g' /home/$USERNAME/.bashrc \
     && echo 'alias xterm='"'"'xterm -fa '"'"'Monospace'"'"' -fs 10 -fg white -bg black'"'"'\n' >> /home/$USERNAME/.bashrc \
-    && echo 'export LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu:/usr/local/cuda/targets/x86_64-linux/lib:/usr/local/cuda/targets/x86_64-linux/lib/stubs:/usr/local/lib:$LD_LIBRARY_PATH' >> /home/$USERNAME/.bashrc \
+    && echo 'export LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu:/usr/local/cuda/targets/x86_64-linux/lib:/usr/local/lib:$LD_LIBRARY_PATH' >> /home/$USERNAME/.bashrc \
     && echo 'export LANG=en_US.UTF-8' >> /home/$USERNAME/.bashrc \
     && echo 'export NO_AT_BRIDGE=1' >> /home/$USERNAME/.bashrc \
     && echo 'cd' >> /home/$USERNAME/.bashrc \
@@ -192,7 +191,7 @@ RUN sed -i 's/xterm-color) color_prompt=yes;;/xterm-color|\*-256color) color_pro
     && sed -i 's/PS1='\''\${debian_chroot:+(\$debian_chroot)}\\\[\\033\[01;32m\\\]\\u@\\h\\\[\\033\[00m\\\]:\\\[\\033\[01;34m\\\]\\w\\\[\\033\[00m\\\]\\\$ '\''/PS1='\''\${debian_chroot:+(\$debian_chroot)}\\\[\\033\[01;37m\\\]\\u@\\\[\\033\[01;31m\\\]docker-\\h\\\[\\033\[00m\\\]:\\\[\\033\[01;35m\\\]\\w\\\[\\033\[00m\\\]\\\$ '\''/g' /root/.bashrc \
     && sed -i 's/alias ls='\''ls --color=auto'\''/alias ls='\''ls -asiF --color=auto'\''/g' /root/.bashrc \
     && echo 'alias xterm='"'"'xterm -fa '"'"'Monospace'"'"' -fs 10 -fg white -bg black'"'"'\n' >> /root/.bashrc \
-    && echo 'export LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu:/usr/local/cuda/targets/x86_64-linux/lib:/usr/local/cuda/targets/x86_64-linux/lib/stubs:/usr/local/lib:$LD_LIBRARY_PATH' >> /root/.bashrc \
+    && echo 'export LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu:/usr/local/cuda/targets/x86_64-linux/lib:/usr/local/lib:$LD_LIBRARY_PATH' >> /root/.bashrc \
     && echo 'export LANG=en_US.UTF-8' >> /root/.bashrc \
     && echo 'export NO_AT_BRIDGE=1' >> /root/.bashrc \
     && echo "complete -d cd" >> /root/.bashrc
@@ -433,6 +432,7 @@ RUN apt-get update \
       colortest \
       curl \
       dialog \
+      fonts-liberation \
       fonts-noto-cjk \
       g++ \
       gcc \
@@ -484,6 +484,7 @@ RUN apt-get update \
       libmtdev-dev \
       libncurses-dev \
       libopenblas-dev \
+      libopengl0 \
       libopenmpi-dev \
       libpam-cap \
       libpcre16-3 \
@@ -515,12 +516,19 @@ RUN apt-get update \
       libswscale-dev \
       libx11-dev \
       libxml2-dev \
+      libxcb-icccm4 \
+      libxcb-image0 \
+      libxcb-keysyms1 \
+      libxcb-render-util0 \
+      libxcb-shape0 \
+      libxkbfile1 \
       libxslt1-dev \
       locate \
       lsb-release \
       make \
       mediainfo \
       media-types \
+      mesa-utils \
       net-tools \
       ninja-build \
       openmpi-bin \
@@ -544,6 +552,7 @@ RUN apt-get update \
       scons \
       shared-mime-info \
       ssh \
+      supervisor \
       texlive \
       texlive-fonts-extra \
       texlive-fonts-recommended \
@@ -559,6 +568,19 @@ RUN apt-get update \
       xterm \
       zip \
       zlib1g-dev \
+    ### Google Chrome \
+    && wget -O /tmp/google-chrome-stable_current_amd64.deb https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb \
+    && dpkg -i /tmp/google-chrome-stable_current_amd64.deb || apt-get -f install -y \
+    && rm -f /tmp/google-chrome-stable_current_amd64.deb \
+    && CHROME_VERSION=$(google-chrome --version | awk '{print $3}') \
+    && wget -O /tmp/chromedriver-linux64.zip "https://storage.googleapis.com/chrome-for-testing-public/${CHROME_VERSION}/linux64/chromedriver-linux64.zip" \
+    && unzip -j /tmp/chromedriver-linux64.zip -d /usr/local/bin/ \
+    && chmod +x /usr/local/bin/chromedriver \
+    && rm -rf /tmp/chromedriver-linux64.zip \
+    ### supervisor \
+    && mkdir -p /var/log/supervisor \
+    && chown -R $USERNAME:$USERNAME /var/log/supervisor \
+    && chmod -R 755 /var/log/supervisor \
     && apt autoremove -y \
     && rm -rf /var/lib/apt/lists/*
 
@@ -693,6 +715,7 @@ RUN . /virtualenv/$VENV/bin/activate \
         zmq \
         argon2_cffi \
         jupyter_kernel_gateway \
+        jupyterlab-nvidia-nsight \
       # Generative AI \
         boto3 \
         langchain \
@@ -774,7 +797,9 @@ RUN . /virtualenv/$VENV/bin/activate \
         vllm==0.7.2 \
       # OCR
         easyocr \
-      # LLM
+      # WebBrowser
+        selenium \
+        webdriver-manager \
       -f https://download.pytorch.org/whl/cu124 \
       -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html 
 
@@ -790,7 +815,6 @@ RUN . /virtualenv/$VENV/bin/activate \
 # torchaudio==2.3.1+cu121 \
 # xformers \
 # -f https://download.pytorch.org/whl/torch_stable.html
-
 
 ########################################
 # nodejs
@@ -888,6 +912,10 @@ RUN . /virtualenv/$VENV/bin/activate \
        done \
 '
 
+# root権限でjupyter labを起動する場合もUSERNAMEと同じ設定を適用する
+RUN cd \
+    && sudo cp -r .jupyter /root/
+
 ########################################
 # Launch JupyterLab from virtualenv with root dir and default dir
 ########################################
@@ -926,39 +954,4 @@ RUN . /virtualenv/$VENV/bin/activate \
 RUN . /virtualenv/$VENV/bin/activate \
     && python -c "import torchvision; \
          model = torchvision.models.resnet18(weights=torchvision.models.ResNet18_Weights.DEFAULT);"
-
-
-########################################
-# Google Chrome
-########################################
-RUN . /virtualenv/$VENV/bin/activate \
-    && pip install --no-cache-dir \
-      selenium \
-      webdriver-manager \
-    && sudo apt-get update \
-    && sudo apt-get install -y --no-install-recommends \
-      fonts-liberation \
-    && wget -O /tmp/google-chrome-stable_current_amd64.deb https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb \
-    && sudo dpkg -i /tmp/google-chrome-stable_current_amd64.deb || sudo apt-get -f install -y \
-    && rm -f /tmp/google-chrome-stable_current_amd64.deb \
-    && CHROME_VERSION=$(google-chrome --version | awk '{print $3}') \
-    && wget -O /tmp/chromedriver-linux64.zip "https://storage.googleapis.com/chrome-for-testing-public/${CHROME_VERSION}/linux64/chromedriver-linux64.zip" \
-    && sudo unzip -j /tmp/chromedriver-linux64.zip -d /usr/local/bin/ \
-    && sudo chmod +x /usr/local/bin/chromedriver \
-    && rm -rf /tmp/chromedriver-linux64.zip \
-    && sudo apt autoremove -y \
-    && sudo rm -rf /var/lib/apt/lists/*
-
-
-########################################
-# supervisor
-########################################
-RUN sudo apt-get update \
-    && sudo apt-get install -y --no-install-recommends \
-      supervisor \
-    && sudo apt autoremove -y \
-    && sudo rm -rf /var/lib/apt/lists/* \
-    && sudo mkdir -p /var/log/supervisor \
-    && sudo chown -R $USERNAME:$USERNAME /var/log/supervisor \
-    && sudo chmod -R 755 /var/log/supervisor
 

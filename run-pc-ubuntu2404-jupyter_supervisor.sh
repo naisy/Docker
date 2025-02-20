@@ -70,8 +70,8 @@ SUPERVISORD_CONF=./jupyter_supervisord.conf
 NAME='jupyter'
 
 docker run \
-    --rm \
     --gpus all \
+    --restart=always
     -itd \
     --mount type=bind,source=$XSOCK,target=$XSOCK \
     --mount type=bind,source=$HOST_USER_XAUTH,target=$DOCKER_USER_XAUTH \
@@ -87,6 +87,7 @@ docker run \
     --mount type=bind,source=/etc/localtime,target=/etc/localtime,readonly \
     --mount type=bind,source=/dev/,target=/dev/ \
     -u $DOCKER_USER \
+    -w $DOCKER_MOUNT_PATH \
     --privileged \
     -e TZ=Asia/Tokyo \
     --network=host \
