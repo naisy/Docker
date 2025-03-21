@@ -40,13 +40,18 @@
 # Underlying OS repogitory
 ########################################
 # https://hub.docker.com/r/nvidia/cuda
+# cat /etc/os-release
+# nvcc --version
+# dpkg -l | grep TensorRT
+# nvcr.io/nvidia/tensorrt:25.02-py3: Ubuntu 24.04/CUDA 12.8/Python3.12/TensorRT 10.8.0.43-1+cuda12.8
+# nvcr.io/nvidia/tensorrt:25.01-py3: Ubuntu 24.04/CUDA 12.8/Python3.12/TensorRT 10.8.0.43-1+cuda12.8
 # nvcr.io/nvidia/tensorrt:24.12-py3: Ubuntu 24.04/CUDA 12.6/Python3.12/TensorRT 10.7.0
 # nvcr.io/nvidia/tensorrt:24.08-py3: Ubuntu 22.04/CUDA 12.6/Python 3.10/TensorRT 10.3.0
 # nvcr.io/nvidia/tensorrt:24.04-py3: Ubuntu 22.04/CUDA 12.4/Python 3.10/TensorRT 8.6.3
 # lsb_release -a
 # nvcc --version
 # pip list installed
-FROM nvcr.io/nvidia/tensorrt:25.01-py3
+FROM nvcr.io/nvidia/tensorrt:25.02-py3
 
 ########################################
 # ENV
@@ -612,7 +617,7 @@ set background=dark'\
 
 
 ########################################
-# CMake 3.31.4
+# CMake 3.31.6
 ########################################
 USER $USERNAME
 RUN mkdir -p ~/github \
@@ -620,7 +625,7 @@ RUN mkdir -p ~/github \
     && sudo apt-get update \
     && sudo apt-get remove -y \
       cmake \
-    && git clone https://github.com/Kitware/CMake.git --depth 1 -b v3.31.4 \
+    && git clone https://github.com/Kitware/CMake.git --depth 1 -b v3.31.6 \
     && cd CMake \
     && ./bootstrap --system-curl \
     && make -j$(nproc) \
@@ -664,6 +669,9 @@ RUN sudo ln -s /usr/include/locale.h /usr/include/xlocale.h
 # ImportError: The _imagingft C module is not installed
 # freetypeを利用できないpillowがある。8.4.0を指定すると回避できる。
 ##############################
+# 一覧
+# https://pypi.nvidia.com/
+
 RUN . /virtualenv/$VENV/bin/activate \
     && pip install --no-cache-dir \
       beautifulsoup4==4.12.3 \
@@ -789,26 +797,70 @@ RUN . /virtualenv/$VENV/bin/activate \
         pytools==2025.1.1 \
         pycairo==1.27.0 \
         pycuda==2025.1 \
-        tensorrt==10.7.0 \
+        tensorrt==10.8.0.43 \
         torch \
         torchvision \
         torchaudio \
         xformers \
-        vllm==0.7.2 \
+        vllm==0.7.3 \
       # OCR
         easyocr \
       # WebBrowser
         selenium \
         webdriver-manager \
-      -f https://download.pytorch.org/whl/cu124 \
-      -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html 
+      # cuML
+        cuml-cu12 \
+        hdbscan \
+        umap-learn \
+      --extra-index-url https://pypi.nvidia.com \
+      -f https://download.pytorch.org/whl/cu126 \
+      -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
 
 # pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
 
 RUN . /virtualenv/$VENV/bin/activate \
-    && pip install --no-cache-dir \
+    && pip install --no-cache-dir --no-build-isolation \
         flash_attn
 
+########################################
+# jax 0.5.1 build
+########################################
+# jaxはcuda対応wheelを配布しなくなった。自前でビルドする必要がある
+# https://docs.jax.dev/en/latest/changelog.html
+
+# bazelをインストール
+#curl -fsSL https://bazel.build/bazel-release.pub.gpg | gpg --dearmor >bazel-archive-keyring.gpg
+#sudo mv bazel-archive-keyring.gpg /usr/share/keyrings/
+#echo "deb [signed-by=/usr/share/keyrings/bazel-archive-keyring.gpg] https://storage.googleapis.com/bazel-apt stable jdk1.8" | sudo tee /etc/apt/sources.list.d/bazel.list
+#sudo apt update && sudo apt install bazel-6.5.0
+#sudo apt install -y clang
+
+# JAXコード取得
+#mkdir -p ~/github
+#cd ~/github
+#git clone https://github.com/google/jax.git
+#cd jax
+#git fetch origin
+#git checkout release/0.5.1
+
+#python build/build.py build --wheels=jaxlib,jax-cuda-plugin,jax-cuda-pjrt
+#        transformer_engine_jax \
+#        transformer_engine_torch \
+#        transformer_engine \
+#        transformer_engine_cu12 \
+
+#RUN . /virtualenv/$VENV/bin/activate \
+#    && pip install --no-cache-dir \
+#        tensorrt_lean_cu12==10.8.0.43 \
+#        tensorrt_llm \
+#        cudf-cu12 \
+#        cuml-cu12 \
+#        rmm_cu12 \
+#        raft_dask_cu12 \
+#        dask_cudf_cu12 \
+#      --extra-index-url https://pypi.nvidia.com
+
+# pip check
 
 #pip install torch==2.3.1+cu121 \
 # torchvision \
@@ -824,7 +876,7 @@ RUN . /virtualenv/$VENV/bin/activate \
 # https://deb.nodesource.com/setup_16.x - Node.js 16 "Gallium"
 # https://deb.nodesource.com/setup_18.x - Node.js 18 "Eighteen" (current)
 
-RUN curl -fsSL https://deb.nodesource.com/setup_24.x | sudo -E bash - \
+RUN curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash - \
     && sudo apt-get update \
     && sudo apt-get install -y \
          nodejs \
