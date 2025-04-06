@@ -68,6 +68,10 @@ RUN . /virtualenv/$VENV/bin/activate \
     && sed -i 's|^requirements = \["gym==0.21", "numpy", "pillow"\]|requirements = []|g' setup.py \
     && pip install -e .
 
+RUN cd ~/github/overdrive \
+    && git pull \
+    && cd ~/github/donkeycar_tools \
+    && git pull
 
 RUN sudo sed -i 's/docker-/docker-donkeycar-overdrive4-/g' /root/.bashrc \
     && sed -i 's/docker-/docker-donkeycar-overdrive4-/g' /home/$USERNAME/.bashrc
