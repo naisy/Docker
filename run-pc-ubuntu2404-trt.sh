@@ -72,6 +72,7 @@ docker run \
     --gpus all \
     --restart always \
     -itd \
+    --cap-add=SYS_ADMIN \
     --mount type=bind,source=$XSOCK,target=$XSOCK \
     --mount type=bind,source=$HOST_USER_XAUTH,target=$DOCKER_USER_XAUTH \
     --mount type=bind,source=$HOST_MOUNT_PATH,target=$DOCKER_MOUNT_PATH \
@@ -81,18 +82,24 @@ docker run \
     -e TF_FORCE_GPU_ALLOW_GROWTH=true \
     -e SHELL=/bin/bash \
     -e HF_HOME=$DOCKER_MOUNT_PATH/.cache/huggingface \
+    -e XDG_RUNTIME_DIR=/tmp/docker_ubuntu_1 \
     --mount type=bind,source=/var/run/dbus/system_bus_socket,target=/var/run/dbus/system_bus_socket,readonly \
     --mount type=bind,source=/etc/localtime,target=/etc/localtime,readonly \
     --mount type=bind,source=/dev/,target=/dev/ \
+    --mount type=bind,source=/opt/nvidia/nsight-systems/2025.1.1/,target=/opt/nvidia/nsight-systems/2025.1.1/,readonly \
+    --mount type=bind,source=/var/run/docker.sock,target=/var/run/docker.sock \
+    --mount type=bind,source=/tmp/,target=/tmp/ \
+    --mount type=bind,source=./jupyterlab_nvidia_nsight/,target=/virtualenv/python3/lib/python3.12/site-packages/jupyterlab_nvidia_nsight/ \
     -u $DOCKER_USER \
     -w $DOCKER_MOUNT_PATH \
     --privileged \
     -e TZ=Asia/Tokyo \
     --network=host \
     --name $NAME \
+    --security-opt seccomp=unconfined \
 $IMG \
 bash -c "source /virtualenv/python3/bin/activate && \
-jupyter lab \
+jupyter lab --debug \
 --ip=0.0.0.0 --port=$PORT --no-browser \
 --ServerApp.iopub_msg_rate_limit=10000 \
 --ServerApp.iopub_data_rate_limit=10000000 \
@@ -103,4 +110,3 @@ jupyter lab \
 --LabApp.default_url=/lab?file-browser-path=$DOCKER_USER_HOME"
 
 chown $EXEC_USER:$EXEC_USER_GROUP $EXEC_USER_HOME/$XAUTH_FILE
-

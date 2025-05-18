@@ -43,6 +43,7 @@
 # cat /etc/os-release
 # nvcc --version
 # dpkg -l | grep TensorRT
+# nvcr.io/nvidia/tensorrt:25.04-py3: Ubuntu 24.04.2/CUDA 12.9/Python3.12/TensorRT 10.9.0.34
 # nvcr.io/nvidia/tensorrt:25.02-py3: Ubuntu 24.04/CUDA 12.8/Python3.12/TensorRT 10.8.0.43-1+cuda12.8
 # nvcr.io/nvidia/tensorrt:25.01-py3: Ubuntu 24.04/CUDA 12.8/Python3.12/TensorRT 10.8.0.43-1+cuda12.8
 # nvcr.io/nvidia/tensorrt:24.12-py3: Ubuntu 24.04/CUDA 12.6/Python3.12/TensorRT 10.7.0
@@ -51,7 +52,7 @@
 # lsb_release -a
 # nvcc --version
 # pip list installed
-FROM nvcr.io/nvidia/tensorrt:25.02-py3
+FROM nvcr.io/nvidia/tensorrt:25.04-py3
 
 ########################################
 # ENV
@@ -94,9 +95,10 @@ ENV LANG=en_US.UTF-8
 RUN echo "# Multiarch support" > /etc/ld.so.conf.d/x86_64-linux-gnu.conf \
     && echo /usr/lib/x86_64-linux-gnu >> /etc/ld.so.conf.d/x86_64-linux-gnu.conf \
     && echo /lib/x86_64-linux-gnu >> /etc/ld.so.conf.d/x86_64-linux-gnu.conf \
-    && echo /usr/local/cuda/targets/x86_64-linux/lib >> /etc/ld.so.conf.d/x86_64-linux-gnu.conf \
-    && echo /usr/local/cuda/targets/x86_64-linux/lib/stubs >> /etc/ld.so.conf.d/x86_64-linux-gnu.conf \
     && ldconfig
+
+# stubsは実態を持たないビルド時のリンカ用。実行時は指定してはいけないので外しておく
+# echo /usr/local/cuda/targets/x86_64-linux/lib/stubs >> /etc/ld.so.conf.d/x86_64-linux-gnu.conf \
 
 
 ########################################
@@ -164,10 +166,11 @@ RUN echo "$USERNAME ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers.d/$USERNAME \
 RUN sed -i 's/#force_color_prompt=yes/force_color_prompt=yes/g' /home/$USERNAME/.bashrc \
     && sed -i 's/PS1='\''\${debian_chroot:+(\$debian_chroot)}\\\[\\033\[01;32m\\\]\\u@\\h\\\[\\033\[00m\\\]:\\\[\\033\[01;34m\\\]\\w\\\[\\033\[00m\\\]\\\$ '\''/PS1='\''\${debian_chroot:+(\$debian_chroot)}\\\[\\033\[01;32m\\\]\\u@\\\[\\033\[01;31m\\\]docker-\\h\\\[\\033\[00m\\\]:\\\[\\033\[01;35m\\\]\\w\\\[\\033\[00m\\\]\\\$ '\''/g' /home/$USERNAME/.bashrc \
     && sed -i 's/alias ls='\''ls --color=auto'\''/alias ls='\''ls -asiF --color=auto'\''/g' /home/$USERNAME/.bashrc \
-    && echo 'alias xterm='"'"'xterm -fa '"'"'Monospace'"'"' -fs 10 -fg white -bg black'"'"'\n' >> /home/$USERNAME/.bashrc \
+    && echo "alias xterm='xterm -fa \"Monospace\" -fs 10 -fg white -bg black'" >> /home/$USERNAME/.bashrc \
     && echo 'export LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu:/usr/local/cuda/targets/x86_64-linux/lib:/usr/local/lib:$LD_LIBRARY_PATH' >> /home/$USERNAME/.bashrc \
     && echo 'export LANG=en_US.UTF-8' >> /home/$USERNAME/.bashrc \
     && echo 'export NO_AT_BRIDGE=1' >> /home/$USERNAME/.bashrc \
+    && echo 'export PATH=$PATH:/usr/src/tensorrt/bin' >> /home/$USERNAME/.bashrc \
     && echo 'cd' >> /home/$USERNAME/.bashrc \
     && echo "complete -d cd" >> /home/$USERNAME/.bashrc
 
@@ -195,10 +198,11 @@ RUN sed -i 's/xterm-color) color_prompt=yes;;/xterm-color|\*-256color) color_pro
     && sed -i 's/#force_color_prompt=yes/force_color_prompt=yes/g' /root/.bashrc \
     && sed -i 's/PS1='\''\${debian_chroot:+(\$debian_chroot)}\\\[\\033\[01;32m\\\]\\u@\\h\\\[\\033\[00m\\\]:\\\[\\033\[01;34m\\\]\\w\\\[\\033\[00m\\\]\\\$ '\''/PS1='\''\${debian_chroot:+(\$debian_chroot)}\\\[\\033\[01;37m\\\]\\u@\\\[\\033\[01;31m\\\]docker-\\h\\\[\\033\[00m\\\]:\\\[\\033\[01;35m\\\]\\w\\\[\\033\[00m\\\]\\\$ '\''/g' /root/.bashrc \
     && sed -i 's/alias ls='\''ls --color=auto'\''/alias ls='\''ls -asiF --color=auto'\''/g' /root/.bashrc \
-    && echo 'alias xterm='"'"'xterm -fa '"'"'Monospace'"'"' -fs 10 -fg white -bg black'"'"'\n' >> /root/.bashrc \
+    && echo "alias xterm='xterm -fa \"Monospace\" -fs 10 -fg white -bg black'" >> /root/.bashrc \
     && echo 'export LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu:/usr/local/cuda/targets/x86_64-linux/lib:/usr/local/lib:$LD_LIBRARY_PATH' >> /root/.bashrc \
     && echo 'export LANG=en_US.UTF-8' >> /root/.bashrc \
     && echo 'export NO_AT_BRIDGE=1' >> /root/.bashrc \
+    && echo 'export PATH=$PATH:/usr/src/tensorrt/bin' >> /root/.bashrc \
     && echo "complete -d cd" >> /root/.bashrc
 
 
@@ -430,6 +434,8 @@ RUN apt-get update \
       libgstrtspserver-1.0-dev \
     && apt autoremove -y \
     && rm -rf /var/lib/apt/lists/*
+
+
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
       arp-scan \
@@ -617,7 +623,7 @@ set background=dark'\
 
 
 ########################################
-# CMake 3.31.6
+# CMake 4.0.2
 ########################################
 USER $USERNAME
 RUN mkdir -p ~/github \
@@ -625,7 +631,7 @@ RUN mkdir -p ~/github \
     && sudo apt-get update \
     && sudo apt-get remove -y \
       cmake \
-    && git clone https://github.com/Kitware/CMake.git --depth 1 -b v3.31.6 \
+    && git clone https://github.com/Kitware/CMake.git --depth 1 -b v4.0.2 \
     && cd CMake \
     && ./bootstrap --system-curl \
     && make -j$(nproc) \
@@ -662,6 +668,17 @@ RUN pip3 install virtualenv \
 RUN sudo ln -s /usr/include/locale.h /usr/include/xlocale.h
 
 
+########################################
+# TensorRT to Python virtualenv 
+########################################
+# system-packageとして存在するけど、他のpipパッケージの関連ライブラリのバージョンをtensorrtが要求するバージョンにあわせたいので、
+# tensorrtはバージョン指定でpipインストールする
+#RUN sudo ln -s /usr/local/lib/python3.12/dist-packages/tensorrt /virtualenv/$VENV/lib/python3.12/site-packages/tensorrt
+
+########################################
+# gi to Python virtualenv 
+########################################
+RUN sudo ln -s /usr/lib/python3/dist-packages/gi /virtualenv/$VENV/lib/python3.12/site-packages/gi
 
 ##############################
 # https://stackoverflow.com/questions/4011705/python-the-imagingft-c-module-is-not-installed
@@ -672,48 +689,117 @@ RUN sudo ln -s /usr/include/locale.h /usr/include/xlocale.h
 # 一覧
 # https://pypi.nvidia.com/
 
+# Dockerfileでのバージョンを決める前に、マニュアルで最新パッケージが入るかどうか確認する
+#pip install --no-cache-dir \
+#  beautifulsoup4 \
+#  Cython \
+#  certifi \
+#  cffi \
+#  charset-normalizer \
+#  cryptography \
+#  distro \
+#  filelock \
+#  gdown \
+#  httplib2 \
+#  idna \
+#  importlib-metadata \
+#  importlib-resources \
+#  jeepney \
+#  keyring \
+#  launchpadlib \
+#  numpy==1.26.4 \
+#  oauthlib \
+#  pbr \
+#  pip \
+#  pycparser \
+#  pyparsing \
+#  PySocks \
+#  SecretStorage \
+#  setuptools \
+#  six \
+#  soupsieve \
+#  testresources \
+#  tqdm \
+#  typing_extensions \
+#  wadllib \
+#  wheel \
+#  zipp
+
+
 RUN . /virtualenv/$VENV/bin/activate \
     && pip install --no-cache-dir \
-      beautifulsoup4==4.12.3 \
-      Cython==3.0.11 \
-      certifi==2024.12.14 \
+      Cython==3.1.0 \
+      PySocks==1.7.1 \
+      SecretStorage==3.3.3 \
+      beautifulsoup4==4.13.4 \
+      certifi==2025.4.26 \
       cffi==1.17.1 \
-      charset-normalizer==3.4.1 \
-      cryptography==44.0.0 \
+      charset-normalizer==3.4.2 \
+      cryptography==44.0.3 \
       distro==1.9.0 \
-      filelock==3.16.1 \
+      filelock==3.18.0 \
       gdown==5.2.0 \
       httplib2==0.22.0 \
       idna==3.10 \
-      importlib-metadata==8.5.0 \
-      importlib-resources==6.4.5 \
-      jeepney==0.8.0 \
+      importlib-metadata==8.7.0 \
+      importlib-resources==6.5.2 \
+      jaraco.classes==3.4.0 \
+      jaraco.context==6.0.1 \
+      jaraco.functools==4.1.0 \
+      jeepney==0.9.0 \
       keyring==25.6.0 \
-      launchpadlib==2.0.0 \
+      launchpadlib==2.1.0 \
+      lazr.restfulclient==0.14.6 \
+      lazr.uri==1.0.7 \
+      more-itertools==10.7.0 \
       numpy==1.26.4 \
       oauthlib==3.2.2 \
-      pbr==6.1.0 \
-      pip==24.3.1 \
+      pbr==6.1.1 \
       pycparser==2.22 \
-      pyparsing==3.2.0 \
-      PySocks==1.7.1 \
-      SecretStorage==3.3.3 \
-      setuptools==75.6.0 \
+      pyparsing==3.2.3 \
+      requests==2.32.3 \
+      setuptools==80.7.1 \
       six==1.17.0 \
-      soupsieve==2.6 \
-      testresources==2.0.1 \
+      soupsieve==2.7 \
+      testresources==2.0.2 \
       tqdm==4.67.1 \
-      typing_extensions==4.12.2 \
+      typing_extensions==4.13.2 \
+      urllib3==2.4.0 \
       wadllib==2.0.0 \
       wheel==0.45.1 \
       zipp==3.21.0
 
 
+#pip install \
+#  torch \
+#  torchvision \
+#  torchaudio \
+#  xformers \
+#--index-url https://download.pytorch.org/whl/cu128
+
+# torch+GPUをインストールする
+# 最新のvllm==0.8.5.post1はtorch 2.6.0までしか対応していない -> cu126のtorch==2.6.0+cu126指定
+# そうなると、torch-tensorrt==2.6.0+cu126になるけど、TensorRT10.8.0< and >=10.7.0.post1になる
+# vllmを取るか、torch-tensorrtを取るか？問題はなにか？-> vllmが最新バージョンに非対応
+# つまりvllmは時間で解決する話だから、vllmは入れずにtorch 2.7.0/tensorrt 10.9.0.34/torch-tensorrt 2.7.0+cu126の環境にする
+#RUN . /virtualenv/$VENV/bin/activate \
+#    && pip install --no-cache-dir \
+#      torch==2.6.0+cu126\
+#      torchvision \
+#      torchaudio \
+#      xformers \
+#      tensorrt==10.9.0.34 \
+#      vllm \
+#  --index-url https://download.pytorch.org/whl/cu126 \
+#  --extra-index-url https://pypi.org/simple \
+#  --extra-index-url https://pypi.nvidia.com
+
 RUN . /virtualenv/$VENV/bin/activate \
-    && pip install --no-cache-dir \
+    && pip install  --no-cache-dir \
         cmake \
       # JupyterLab \
         jupyterlab \
+        jupyter_bokeh \
         jupyter_client \
         ipykernel \
         ipywidgets \
@@ -723,7 +809,7 @@ RUN . /virtualenv/$VENV/bin/activate \
         zmq \
         argon2_cffi \
         jupyter_kernel_gateway \
-        jupyterlab-nvidia-nsight \
+        jupyterlab-nvidia-nsight==0.7.0 \
       # Generative AI \
         boto3 \
         langchain \
@@ -748,16 +834,18 @@ RUN . /virtualenv/$VENV/bin/activate \
         scipy \
         pandas \
         matplotlib  \
-        Pillow \
+        pillow \
         regex \
         transformers \
       # Prolog
         pyswip \
-      # PlantUML \
+        #PlantUML
         iplantuml \
         graphviz \
       # Other
         PyYAML \
+        lmdb \
+        lz4 \
         cycler \
         kiwisolver \
         networkx \
@@ -776,33 +864,34 @@ RUN . /virtualenv/$VENV/bin/activate \
         bitsandbytes \
         accelerate \
         sentencepiece \
-        peft==0.14.0 \
+        peft \
         trl \
         emoji \
         neologdn \
-	unsloth \
       # LLM
-        jax==0.4.29 \
-        jaxlib==0.4.29+cuda12.cudnn91 \
+        unsloth \
         optax \
-        datasets==2.21.0 \
+        datasets \
         mecab-python3 \
         unidic-lite \
         pynvml \
         deepspeed \
         seaborn \
-	sentence_transformers \
-	nGPT-pytorch \
+        sentence_transformers \
+        nGPT-pytorch \
       # Torch
-        pytools==2025.1.1 \
+        onnx \
+        onnxruntime \
+        pytools==2025.1.2 \
         pycairo==1.27.0 \
         pycuda==2025.1 \
-        tensorrt==10.8.0.43 \
-        torch \
+        tensorrt==10.9.0.34 \
+        polygraphy==0.49.20 \
+        torch==2.7.0+cu126\
         torchvision \
         torchaudio \
         xformers \
-        vllm==0.7.3 \
+        tensorrt==10.9.0.34 \
       # OCR
         easyocr \
       # WebBrowser
@@ -812,9 +901,19 @@ RUN . /virtualenv/$VENV/bin/activate \
         cuml-cu12 \
         hdbscan \
         umap-learn \
-      --extra-index-url https://pypi.nvidia.com \
-      -f https://download.pytorch.org/whl/cu126 \
-      -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
+  --index-url https://download.pytorch.org/whl/cu126 \
+  --extra-index-url https://pypi.org/simple \
+  --extra-index-url https://pypi.nvidia.com
+
+# torch-tensorrtの適切なバージョンを探すために、インストール済みのtorchとtensorrtのバージョンを指定しておく
+RUN . /virtualenv/$VENV/bin/activate \
+    && pip install --no-cache-dir \
+      torch==2.7.0+cu126\
+      tensorrt==10.9.0.34 \
+      torch-tensorrt \
+  --index-url https://download.pytorch.org/whl/cu126 \
+  --extra-index-url https://pypi.nvidia.com
+
 
 # pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
 
@@ -822,51 +921,6 @@ RUN . /virtualenv/$VENV/bin/activate \
     && pip install --no-cache-dir --no-build-isolation \
         flash_attn
 
-########################################
-# jax 0.5.1 build
-########################################
-# jaxはcuda対応wheelを配布しなくなった。自前でビルドする必要がある
-# https://docs.jax.dev/en/latest/changelog.html
-
-# bazelをインストール
-#curl -fsSL https://bazel.build/bazel-release.pub.gpg | gpg --dearmor >bazel-archive-keyring.gpg
-#sudo mv bazel-archive-keyring.gpg /usr/share/keyrings/
-#echo "deb [signed-by=/usr/share/keyrings/bazel-archive-keyring.gpg] https://storage.googleapis.com/bazel-apt stable jdk1.8" | sudo tee /etc/apt/sources.list.d/bazel.list
-#sudo apt update && sudo apt install bazel-6.5.0
-#sudo apt install -y clang
-
-# JAXコード取得
-#mkdir -p ~/github
-#cd ~/github
-#git clone https://github.com/google/jax.git
-#cd jax
-#git fetch origin
-#git checkout release/0.5.1
-
-#python build/build.py build --wheels=jaxlib,jax-cuda-plugin,jax-cuda-pjrt
-#        transformer_engine_jax \
-#        transformer_engine_torch \
-#        transformer_engine \
-#        transformer_engine_cu12 \
-
-#RUN . /virtualenv/$VENV/bin/activate \
-#    && pip install --no-cache-dir \
-#        tensorrt_lean_cu12==10.8.0.43 \
-#        tensorrt_llm \
-#        cudf-cu12 \
-#        cuml-cu12 \
-#        rmm_cu12 \
-#        raft_dask_cu12 \
-#        dask_cudf_cu12 \
-#      --extra-index-url https://pypi.nvidia.com
-
-# pip check
-
-#pip install torch==2.3.1+cu121 \
-# torchvision \
-# torchaudio==2.3.1+cu121 \
-# xformers \
-# -f https://download.pytorch.org/whl/torch_stable.html
 
 ########################################
 # nodejs
@@ -980,16 +1034,18 @@ CMD . /virtualenv/python3/bin/activate && exec bash -c "jupyter-lab --ip=0.0.0.0
 RUN echo "export LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libgomp.so.1" >> ~/.bashrc
 
 
-
 ########################################
 # torch2trt
 ########################################
+# --no-build-isolation	pip が setup.py を実行するために作るクリーンな一時仮想環境を使わず、今の仮想環境をそのまま使う
+# --no-use-pep517	pyproject.toml がなくても pip は内部的に PEP 517 を使おうとするが、それを無効化し、昔ながらの setup.py 実行に戻す
+# --config-settings editable_mode=compat	pip 25 以降で editable install (-e .) をする際、旧 setup.py develop の動作を互換モードで実現するための設定
 RUN . /virtualenv/$VENV/bin/activate \
     && mkdir -p ~/github \
     && cd ~/github \
     && git clone https://github.com/NVIDIA-AI-IOT/torch2trt \
     && cd torch2trt \
-    && pip install -e .
+    && pip install -e . --no-build-isolation --no-use-pep517 --config-settings editable_mode=compat
 
 ########################################
 # llama.cpp
