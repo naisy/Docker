@@ -796,7 +796,7 @@ RUN . /virtualenv/$VENV/bin/activate \
 
 RUN . /virtualenv/$VENV/bin/activate \
     && pip install  --no-cache-dir \
-        cmake \
+        cmake==4.0.2 \
       # JupyterLab \
         jupyterlab \
         jupyter_bokeh \
@@ -804,6 +804,8 @@ RUN . /virtualenv/$VENV/bin/activate \
         ipykernel \
         ipywidgets \
         ipyevents \
+        ipycanvas \
+        ipympl \
         nbdev \
         Jinja2 \
         zmq \
