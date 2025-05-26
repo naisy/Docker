@@ -89,7 +89,6 @@ docker run \
     --mount type=bind,source=/opt/nvidia/nsight-systems/2025.1.1/,target=/opt/nvidia/nsight-systems/2025.1.1/,readonly \
     --mount type=bind,source=/var/run/docker.sock,target=/var/run/docker.sock \
     --mount type=bind,source=/tmp/,target=/tmp/ \
-    --mount type=bind,source=./jupyterlab_nvidia_nsight/,target=/virtualenv/python3/lib/python3.12/site-packages/jupyterlab_nvidia_nsight/ \
     -u $DOCKER_USER \
     -w $DOCKER_MOUNT_PATH \
     --privileged \
