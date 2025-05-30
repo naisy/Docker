@@ -988,37 +988,36 @@ RUN . /virtualenv/$VENV/bin/activate \
     // The theme for the terminal.\n\
     "theme": "dark"\n\
 }'\
->  ~/.jupyter/lab/user-settings/\@jupyterlab/terminal-extension/plugin.jupyterlab-settings \
-    ####################
-    # Jupyter Console System Color Tango to Rxvt-LightBlue/Aquamarine
-    ####################
-    # ファイル名がわからん。インストールで変わる。
-    # find /usr/local/share/jupyter/lab/static/ -type f | xargs grep -l "#2e3436"
-    # /usr/local/share/jupyter/lab/static/vendors~main.23ff2294e1453ac6af20.js
-    # locate /virtualenv/python3 | grep "\.js$"  | xargs -I {} grep -l "#ad7fa8" {}
-    #export JUPYTER_TERMINAL_COLOR_FILE=`find /usr/local/share/jupyter/lab/static/ -type f -name "*\.js" | xargs -I {} grep -l "#3465a4" {}` \
-    #&& export JUPYTER_TERMINAL_COLOR_FILE=`find /virtualenv/$VENV/share/jupyter/lab/static/ -type f -name "*\.js" | xargs -I {} grep -l "#3465a4" {}` \
-    && sh -c '\
-       JUPYTER_TERMINAL_COLOR_FILE=$(find /virtualenv/$VENV/ -type f -name "*\.js" | xargs -I {} grep -l "#3465a4" {}); \
-       for file in $JUPYTER_TERMINAL_COLOR_FILE; do \
-          sed -i 's/#2e3436/#000000/g' $file; \
-          sed -i 's/#cc0000/#cd0000/g' $file; \
-          sed -i 's/#4e9a06/#00cd00/g' $file; \
-          sed -i 's/#c4a000/#cdcd00/g' $file; \
-          sed -i 's/#3465a4/#add8e6/g' $file; \
-          sed -i 's/#75507b/#cd00cd/g' $file; \
-          sed -i 's/#06989a/#00cdcd/g' $file; \
-          sed -i 's/#d3d7cf/#faebd7/g' $file; \
-          sed -i 's/#555753/#404040/g' $file; \
-          sed -i 's/#ef2929/#ff0000/g' $file; \
-          sed -i 's/#8ae234/#00ff00/g' $file; \
-          sed -i 's/#fce94f/#ffff00/g' $file; \
-          sed -i 's/#729fcf/#7fffd4/g' $file; \
-          sed -i 's/#ad7fa8/#ff00ff/g' $file; \
-          sed -i 's/#34e2e2/#00ffff/g' $file; \
-          sed -i 's/#eeeeec/#ffffff/g' $file; \
-       done \
-'
+>  ~/.jupyter/lab/user-settings/\@jupyterlab/terminal-extension/plugin.jupyterlab-settings
+
+
+########################################
+# JupyterLab terminal DEFAULT_ANSI_COLORS Tango to Rxvt-LightBlue/Aquamarine
+########################################
+RUN grep -rl --include=\*.js --include=\*.ts --include=\*.css --include=\*.html \
+    "#3465a4" /virtualenv/python3/share/jupyter \
+  | while read file; do \
+    echo "パッチ中: $file"; \
+    sed -i '\
+      s/#2e3436/#000000/g;\
+      s/#cc0000/#cd0000/g;\
+      s/#4e9a06/#00cd00/g;\
+      s/#c4a000/#cdcd00/g;\
+      s/#3465a4/#add8e6/g;\
+      s/#75507b/#cd00cd/g;\
+      s/#06989a/#00cdcd/g;\
+      s/#d3d7cf/#faebd7/g;\
+      s/#555753/#404040/g;\
+      s/#ef2929/#ff0000/g;\
+      s/#8ae234/#00ff00/g;\
+      s/#fce94f/#ffff00/g;\
+      s/#729fcf/#7fffd4/g;\
+      s/#ad7fa8/#ff00ff/g;\
+      s/#34e2e2/#00ffff/g;\
+      s/#eeeeec/#ffffff/g;\
+    ' "$file"; \
+  done
+
 
 # root権限でjupyter labを起動する場合もUSERNAMEと同じ設定を適用する
 RUN cd \
