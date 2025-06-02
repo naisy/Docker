@@ -44,12 +44,45 @@ ARG OPENBLAS_CORETYPE=ARMV8
 ARG VENV=python3
 
 
+########################################
+# JupyterLab terminal DEFAULT_ANSI_COLORS Tango to Rxvt-LightBlue/Aquamarine
+########################################
+RUN grep -rl --include=\*.js --include=\*.ts --include=\*.css --include=\*.html \
+    "#3465a4" /virtualenv/python3/share/jupyter \
+  | while read file; do \
+    echo "パッチ中: $file"; \
+    sed -i '\
+      s/#2e3436/#000000/g;\
+      s/#cc0000/#cd0000/g;\
+      s/#4e9a06/#00cd00/g;\
+      s/#c4a000/#cdcd00/g;\
+      s/#3465a4/#add8e6/g;\
+      s/#75507b/#cd00cd/g;\
+      s/#06989a/#00cdcd/g;\
+      s/#d3d7cf/#faebd7/g;\
+      s/#555753/#404040/g;\
+      s/#ef2929/#ff0000/g;\
+      s/#8ae234/#00ff00/g;\
+      s/#fce94f/#ffff00/g;\
+      s/#729fcf/#7fffd4/g;\
+      s/#ad7fa8/#ff00ff/g;\
+      s/#34e2e2/#00ffff/g;\
+      s/#eeeeec/#ffffff/g;\
+    ' "$file"; \
+  done
+
 # jupyterlab mouse click event
 RUN . /virtualenv/$VENV/bin/activate \
     && pip install --no-deps \
       ipyevents==2.0.2 \
       orjson==3.6.1
 
+
+# DSR Alpha Zero
+RUN . /virtualenv/$VENV/bin/activate \
+    && pip install --no-deps \
+      lmdb==1.6.2 \
+      lz4
 
 ########################################
 # DonkeyCar OVERDRIVE4
