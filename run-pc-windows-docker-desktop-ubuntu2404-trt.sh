@@ -1,8 +1,9 @@
 # 必要な変数を設定
-# 前提：wslでUbuntu-22.04を作成してデフォルトに設定しておく
+# 前提：wslでUbuntu-24.04を作成してデフォルトに設定しておく
+# --network=hostは機能しなくなったり不安定なのでポート指定する
 
 $IMG = 'naisy/pc-ubuntu2404-trt-base'
-$PORT = 8889  # JupyterLabが動作するポート番号 (http://localhost:8888)
+$PORT = 8890  # JupyterLabが動作するポート番号 (http://localhost:8888)
 $NAME = 'trt2404'  # Dockerコンテナ名 重複起動しないようにユニークな名前を付けておく
 $WINDOWS_HOST_MOUNT_PATH = 'C:/App/data'  # C:/App/dataフォルダをDockerコンテナの/home/ubuntu/data_windows ($HOME/data_windows)としてマウントする
 $UBUNTU_HOST_MOUNT_PATH = '/home/ubuntu/data'  # 自動作成されたdocker-desktopは16GBなので不適切。そのためUbuntuのディレクトリをDockerコンテナの/home/ubuntu/data_ubuntu ($HOME/data_ubuntu)としてマウントする
@@ -35,7 +36,7 @@ docker run `
     -e HF_HOME=$DOCKER_UBUNTU_HOST_MOUNT_PATH/.cache/huggingface `
     -e SHELL=/bin/bash `
     -e TZ=Asia/Tokyo `
-    --network=host `
+    -p ${PORT}:${PORT} `
     --name $NAME `
     $IMG `
 bash -c "source /virtualenv/python3/bin/activate && jupyter lab --ip=0.0.0.0 --port=$PORT --no-browser --ServerApp.iopub_msg_rate_limit=10000 --ServerApp.iopub_data_rate_limit=10000000 --ServerApp.root_dir=/ --LabApp.default_url=/lab?file-browser-path=/home/ubuntu"
