@@ -64,7 +64,7 @@ fi
 ########################################
 # docker image
 ########################################
-IMG=naisy/pc-ubuntu2404-trt-base
+IMG=naisy/pc-ubuntu2404-trt-base:torch2.7.0
 PORT=8888
 NAME='trt'
 

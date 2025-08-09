@@ -2,7 +2,7 @@
 # 前提：wslでUbuntu-24.04を作成してデフォルトに設定しておく
 # --network=hostは機能しなくなったり不安定なのでポート指定する
 
-$IMG = 'naisy/pc-ubuntu2404-trt-base'
+$IMG = 'naisy/pc-ubuntu2404-trt-base:torch2.7.0'
 $PORT = 8890  # JupyterLabが動作するポート番号 (http://localhost:8888)
 $NAME = 'trt2404'  # Dockerコンテナ名 重複起動しないようにユニークな名前を付けておく
 $WINDOWS_HOST_MOUNT_PATH = 'C:/App/data'  # C:/App/dataフォルダをDockerコンテナの/home/ubuntu/data_windows ($HOME/data_windows)としてマウントする

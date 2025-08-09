@@ -1,5 +1,5 @@
 # 必要な変数を設定
-# 前提：wslでUbuntu-22.04を作成してデフォルトに設定しておく
+# 前提：wslでUbuntu-24.04を作成してデフォルトに設定しておく
 
 $IMG = 'ollama/ollama'
 $PORT = 11434  # ollamaが動作するポート番号 (http://localhost:11434)
@@ -44,7 +44,8 @@ docker run `
     -e OLLAMA_CUDA=1 `
     -e OLLAMA_FLASH_ATTE=1 `
     -e OLLAMA_LOAD_TIMEOUT=-1 `
-    --network=host `
+    -e OLLAMA_CONTEXT_LENGTH=16384 `
+    -p ${PORT}:${PORT} `
     --name $NAME `
     $IMG `
 
