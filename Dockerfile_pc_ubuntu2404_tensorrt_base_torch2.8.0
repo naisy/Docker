@@ -2,7 +2,7 @@
 # Docker build
 ########################################
 # Host: apt-get install nvidia-driver-550
-#time sudo docker build --progress plain -t naisy/pc-ubuntu2404-trt-base:torch2.7.0 -f Dockerfile_pc_ubuntu2404_tensorrt_base .
+#time sudo docker build --progress plain -t naisy/pc-ubuntu2404-trt-base:torch2.8.0 -f Dockerfile_pc_ubuntu2404_tensorrt_base .
 
 # docker push
 #docker login --username=naisy
@@ -43,7 +43,14 @@
 # cat /etc/os-release
 # nvcc --version
 # dpkg -l | grep TensorRT
-# nvcr.io/nvidia/tensorrt:25.04-py3: Ubuntu 24.04.2/CUDA 12.9/Python3.12/TensorRT 10.9.0.34
+#docker run --rm nvcr.io/nvidia/tensorrt:25.04-py3 \
+#    bash -c 'echo -n "Ubuntu: "; cat /etc/os-release | grep -m1 PRETTY_NAME | cut -d= -f2 | tr -d "\"";
+#             echo -n "CUDA: "; nvcc --version | grep release | sed "s/.*release //;s/,.*//";
+#             echo -n "Python: "; python3 --version;
+#             echo -n "TensorRT: "; python3 -c "import tensorrt as trt; print(trt.__version__)"'
+#
+# nvcr.io/nvidia/tensorrt:25.06-py3: Ubuntu 24.04.2/CUDA 12.9/Python3.12.3/TensorRT 10.11.0.33
+# nvcr.io/nvidia/tensorrt:25.04-py3: Ubuntu 24.04.2/CUDA 12.9/Python3.12.3/TensorRT 10.9.0.34
 # nvcr.io/nvidia/tensorrt:25.02-py3: Ubuntu 24.04/CUDA 12.8/Python3.12/TensorRT 10.8.0.43-1+cuda12.8
 # nvcr.io/nvidia/tensorrt:25.01-py3: Ubuntu 24.04/CUDA 12.8/Python3.12/TensorRT 10.8.0.43-1+cuda12.8
 # nvcr.io/nvidia/tensorrt:24.12-py3: Ubuntu 24.04/CUDA 12.6/Python3.12/TensorRT 10.7.0
@@ -52,7 +59,7 @@
 # lsb_release -a
 # nvcc --version
 # pip list installed
-FROM nvcr.io/nvidia/tensorrt:25.04-py3
+FROM nvcr.io/nvidia/tensorrt:25.06-py3
 
 ########################################
 # ENV
@@ -726,6 +733,25 @@ RUN sudo ln -s /usr/lib/python3/dist-packages/gi /virtualenv/$VENV/lib/python3.1
 #  wheel \
 #  zipp
 
+# インストール済みのpipパッケージバージョン確認
+#docker run --rm nvcr.io/nvidia/tensorrt:25.06-py3 \
+#    bash -c 'pip list installed'
+#Package           Version
+#----------------- ----------
+#Mako              1.3.10
+#MarkupSafe        3.0.2
+#numpy             1.26.4
+#pillow            11.2.1
+#pip               25.1.1
+#platformdirs      4.3.8
+#polygraphy        0.49.24
+#pycuda            2025.1.1
+#pytools           2025.1.6
+#setuptools        68.1.2
+#siphash24         1.7
+#tensorrt          10.11.0.33
+#typing_extensions 4.14.0
+#wheel             0.42.0
 
 RUN . /virtualenv/$VENV/bin/activate \
     && pip install --no-cache-dir \
@@ -779,37 +805,47 @@ RUN . /virtualenv/$VENV/bin/activate \
 #--index-url https://download.pytorch.org/whl/cu128
 
 # torch+GPUをインストールする
-# 最新のvllm==0.8.5.post1はtorch 2.6.0までしか対応していない -> cu126のtorch==2.6.0+cu126指定
-# そうなると、torch-tensorrt==2.6.0+cu126になるけど、TensorRT10.8.0< and >=10.7.0.post1になる
-# vllmを取るか、torch-tensorrtを取るか？問題はなにか？-> vllmが最新バージョンに非対応
-# つまりvllmは時間で解決する話だから、vllmは入れずにtorch 2.7.0/tensorrt 10.9.0.34/torch-tensorrt 2.7.0+cu126の環境にする
-#RUN . /virtualenv/$VENV/bin/activate \
-#    && pip install --no-cache-dir \
-#      torch==2.6.0+cu126\
+# ここまでの環境を使って、インストール可能なバージョン/パッケージに組み合わせを確認する
+#docker run --gpus=all a \
+#bash -c 'pip install --no-cache-dir \
+#      torch==2.8.0+cu129\
+#      torchvision \
+#      torchaudio \
+#  --index-url https://download.pytorch.org/whl/cu129 \
+#  --extra-index-url https://pypi.org/simple \
+#  --extra-index-url https://pypi.nvidia.com'
+
+
+#docker run --gpus=all a \
+#bash -c 'pip install --no-cache-dir \
+#      torch==2.8.0+cu129\
 #      torchvision \
 #      torchaudio \
 #      xformers \
-#      tensorrt==10.9.0.34 \
+#      tensorrt==10.11.0.33 \
 #      vllm \
-#  --index-url https://download.pytorch.org/whl/cu126 \
+#  --index-url https://download.pytorch.org/whl/cu129 \
 #  --extra-index-url https://pypi.org/simple \
-#  --extra-index-url https://pypi.nvidia.com
-
-
+#  --extra-index-url https://pypi.nvidia.com'
 
 RUN . /virtualenv/$VENV/bin/activate \
     && pip install  --no-cache-dir \
-        torch==2.7.0+cu126 \
-        torchvision==0.22.0+cu126 \
-        torchaudio==2.7.0+cu126 \
-        tensorrt==10.9.0.34 \
-      # cuML
-        cuml-cu12 \
-        hdbscan \
-        umap-learn \
-  --index-url https://download.pytorch.org/whl/cu126 \
+      torch==2.8.0+cu129\
+      torchvision==0.23.0+cu129 \
+      torchaudio==2.8.0+cu129 \
+      tensorrt==10.11.0.33 \
+  --index-url https://download.pytorch.org/whl/cu129 \
   --extra-index-url https://pypi.org/simple \
   --extra-index-url https://pypi.nvidia.com
+
+#RUN . /virtualenv/$VENV/bin/activate \
+#    && pip install  --no-cache-dir \
+#      torch==2.8.0+cu129\
+#      torchvision==0.23.0+cu129 \
+#      torchaudio==2.8.0+cu129 \
+#  --index-url https://download.pytorch.org/whl/cu129 \
+#  --extra-index-url https://pypi.org/simple \
+#  --extra-index-url https://pypi.nvidia.com
 
 
 RUN . /virtualenv/$VENV/bin/activate \
@@ -858,7 +894,7 @@ RUN . /virtualenv/$VENV/bin/activate \
         matplotlib  \
         pillow \
         regex \
-	tensorboard \
+        transformers \
       # Prolog
         pyswip \
       # PlantUML
@@ -890,7 +926,7 @@ RUN . /virtualenv/$VENV/bin/activate \
         trl \
         emoji \
         neologdn \
-        transformers \
+        tensorboard \
         jpholiday \
       # LLM
         unsloth \
@@ -909,37 +945,44 @@ RUN . /virtualenv/$VENV/bin/activate \
         pytools==2025.1.6 \
         pycairo==1.28.0 \
         pycuda==2025.1.1 \
-        tensorrt==10.9.0.34 \
+        tensorrt==10.11.0.33 \
         polygraphy==0.49.26 \
-        torch==2.7.0+cu126 \
-        torchvision==0.22.0+cu126 \
-        torchaudio==2.7.0+cu126 \
+        torch==2.8.0+cu129\
+        torchvision==0.23.0+cu129 \
+        torchaudio==2.8.0+cu129 \
         torchinfo \
-        xformers \
-      # OCR
-        easyocr \
       # WebBrowser
         selenium \
         webdriver-manager \
-  --index-url https://download.pytorch.org/whl/cu126 \
+      # cuML
+        cuml-cu12 \
+        hdbscan \
+        umap-learn \
+  --index-url https://download.pytorch.org/whl/cu129 \
   --extra-index-url https://pypi.org/simple \
   --extra-index-url https://pypi.nvidia.com
 
+# xformers は pytorch 2.7.1までしか出ていないので、削除する
+# flash-attenも使えなくなる
+#      # OCR
+#        easyocr \
+
+
 # torch-tensorrtの適切なバージョンを探すために、インストール済みのtorchとtensorrtのバージョンを指定しておく
-RUN . /virtualenv/$VENV/bin/activate \
-    && pip install --no-cache-dir \
-      torch==2.7.0+cu126\
-      tensorrt==10.9.0.34 \
-      torch-tensorrt \
-  --index-url https://download.pytorch.org/whl/cu126 \
-  --extra-index-url https://pypi.nvidia.com
+#RUN . /virtualenv/$VENV/bin/activate \
+#    && pip install --no-cache-dir \
+#      torch==2.8.0+cu129 \
+#      tensorrt==10.11.0.33 \
+#      torch-tensorrt \
+#  --index-url https://download.pytorch.org/whl/cu129 \
+#  --extra-index-url https://pypi.nvidia.com
 
 
 # pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
 
-RUN . /virtualenv/$VENV/bin/activate \
-    && pip install --no-cache-dir --no-build-isolation \
-        flash_attn
+#RUN . /virtualenv/$VENV/bin/activate \
+#    && pip install --no-cache-dir --no-build-isolation \
+#        flash_attn
 
 
 ########################################
