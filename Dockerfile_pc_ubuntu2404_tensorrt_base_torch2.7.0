@@ -2,7 +2,7 @@
 # Docker build
 ########################################
 # Host: apt-get install nvidia-driver-550
-#time sudo docker build --progress plain -t naisy/pc-ubuntu2404-trt-base:torch2.7.0 -f Dockerfile_pc_ubuntu2404_tensorrt_base .
+#time sudo docker build --progress plain -t naisy/pc-ubuntu2404-trt-base:torch2.7.0 -f Dockerfile_pc_ubuntu2404_tensorrt_base_torch2.7.0 .
 
 # docker push
 #docker login --username=naisy
@@ -778,11 +778,7 @@ RUN . /virtualenv/$VENV/bin/activate \
 #  xformers \
 #--index-url https://download.pytorch.org/whl/cu128
 
-# torch+GPUをインストールする
-# 最新のvllm==0.8.5.post1はtorch 2.6.0までしか対応していない -> cu126のtorch==2.6.0+cu126指定
-# そうなると、torch-tensorrt==2.6.0+cu126になるけど、TensorRT10.8.0< and >=10.7.0.post1になる
-# vllmを取るか、torch-tensorrtを取るか？問題はなにか？-> vllmが最新バージョンに非対応
-# つまりvllmは時間で解決する話だから、vllmは入れずにtorch 2.7.0/tensorrt 10.9.0.34/torch-tensorrt 2.7.0+cu126の環境にする
+
 #RUN . /virtualenv/$VENV/bin/activate \
 #    && pip install --no-cache-dir \
 #      torch==2.6.0+cu126\
@@ -830,8 +826,8 @@ RUN . /virtualenv/$VENV/bin/activate \
         argon2_cffi \
         jupyter_kernel_gateway \
         jupyterlab-nvidia-nsight==0.7.0 \
-	jupyterlab-nvdashboard \
-	jupyter-resource-usage \
+        jupyterlab-nvdashboard \
+        jupyter-resource-usage \
       # Generative AI \
         boto3 \
         langchain \
@@ -894,6 +890,7 @@ RUN . /virtualenv/$VENV/bin/activate \
         jpholiday \
       # LLM
         unsloth \
+        unsloth_zoo \
         optax==0.2.5 \
         datasets \
         mecab-python3 \
@@ -934,12 +931,38 @@ RUN . /virtualenv/$VENV/bin/activate \
   --index-url https://download.pytorch.org/whl/cu126 \
   --extra-index-url https://pypi.nvidia.com
 
-
 # pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
 
 RUN . /virtualenv/$VENV/bin/activate \
     && pip install --no-cache-dir --no-build-isolation \
         flash_attn
+
+RUN . /virtualenv/$VENV/bin/activate \
+    && pip install --no-cache-dir --no-build-isolation \
+        flash_attn
+
+# for HRM https://github.com/sapientinc/HRM
+# for pgvector/RAG
+RUN . /virtualenv/$VENV/bin/activate \
+    && pip install --no-cache-dir --no-build-isolation \
+      argdantic \
+      coolname \
+      hydra-core \
+      adam-atan2 \
+      python-dotenv \
+      pgvector \
+      psycopg[binary] \
+      sentence-transformers
+
+
+# torch 2.7.0対応のvllm 0.9.0をインストール
+# vllmは関連パッケージバージョンが低いので外す
+# vllmは混ぜずに配布dockerを使うほうがよさそう。ollamaみたいに。
+#vllm 0.10.0 requires openai<=1.90.0,>=1.87.0, but you have openai 1.99.9 which is incompatible.
+#vllm 0.10.0 requires setuptools<80,>=77.0.3; python_version > "3.11", but you have setuptools 80.9.0 which is incompatible.
+#RUN . /virtualenv/$VENV/bin/activate \
+#    && pip install  --no-cache-dir \
+#      vllm==0.10.0
 
 
 ########################################
@@ -1081,4 +1104,14 @@ RUN . /virtualenv/$VENV/bin/activate \
 RUN . /virtualenv/$VENV/bin/activate \
     && python -c "import torchvision; \
          model = torchvision.models.resnet18(weights=torchvision.models.ResNet18_Weights.DEFAULT);"
+
+
+########################################
+# docker-cli
+########################################
+RUN sudo apt-get update \
+    && sudo apt-get install -y \
+         docker-cli \
+    && sudo apt autoremove -y \
+    && sudo rm -rf /var/lib/apt/lists/*
 
