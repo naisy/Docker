@@ -950,6 +950,7 @@ RUN . /virtualenv/$VENV/bin/activate \
       hydra-core \
       adam-atan2 \
       python-dotenv \
+      psycopg2-binary \
       pgvector \
       psycopg[binary] \
       sentence-transformers
