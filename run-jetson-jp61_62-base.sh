@@ -66,8 +66,8 @@ fi
 ########################################
 #IMG=nvcr.io/nvidia/deepstream-l4t:7.1-triton-multiarch
 IMG=naisy/jetson-jp61_62-deepstream71-triton-base
-PORT=8888
-NAME='ds'
+PORT=8890
+NAME='ds2'
 
 docker run \
     --runtime=nvidia \
@@ -87,9 +87,10 @@ docker run \
     --mount type=bind,source=/etc/localtime,target=/etc/localtime,readonly \
     --mount type=bind,source=/etc/enctune.conf,target=/etc/enctune.conf,readonly \
     --mount type=bind,source=/tmp/,target=/tmp/ \
-    --mount type=bind,source=/proc/,target=/proc/ \
+    --mount type=bind,source=/usr/lib/aarch64-linux-gnu/tegra,target=/usr/lib/aarch64-linux-gnu/tegra,readonly \
     -u $DOCKER_USER \
     --privileged \
+    --ipc=host \
     --network=host \
     --name $NAME \
 $IMG \
