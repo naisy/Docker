@@ -64,6 +64,7 @@ docker run `
     -e NVIDIA_DRIVER_CAPABILITIES=all `
     -e QT_GRAPHICSSYSTEM=native `
     -e QT_X11_NO_MITSHM=1 `
+    -e QT_QPA_PLATFORM=wayland `
     -e TF_FORCE_GPU_ALLOW_GROWTH=true `
     -e HF_HOME=$DOCKER_UBUNTU_HOST_MOUNT_PATH/.cache/huggingface `
     -e SHELL=/bin/bash `
