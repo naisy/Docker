@@ -1116,3 +1116,11 @@ RUN sudo apt-get update \
     && sudo apt autoremove -y \
     && sudo rm -rf /var/lib/apt/lists/*
 
+
+########################################
+# 追加pipパッケージ
+########################################
+RUN . /virtualenv/$VENV/bin/activate \
+    && pip install --no-cache-dir \
+      PyQt5
+
