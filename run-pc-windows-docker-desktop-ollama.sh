@@ -33,7 +33,7 @@ docker run `
     -itd `
     --mount "type=bind,source=$WINDOWS_HOST_MOUNT_PATH,target=$DOCKER_WINDOWS_HOST_MOUNT_PATH" `
     --mount "type=bind,source=$WSL2_HOST_MOUNT_PATH,target=$DOCKER_UBUNTU_HOST_MOUNT_PATH" `
-    --mount type=bind,source=/dev/,target=/dev/ `
+    -e NVIDIA_DRIVER_CAPABILITIES=all `
     -e QT_GRAPHICSSYSTEM=native `
     -e HF_HOME=$DOCKER_UBUNTU_HOST_MOUNT_PATH/.cache/huggingface `
     -e SHELL=/bin/bash `
