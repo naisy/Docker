@@ -4,7 +4,7 @@
 $IMG = 'ollama/ollama'
 $PORT = 11434  # ollamaが動作するポート番号 (http://localhost:11434)
 $NAME = 'ollama'  # Dockerコンテナ名 重複起動しないようにユニークな名前を付けておく
-$WINDOWS_HOST_MOUNT_PATH = 'C:/App/data'  # C:/App/dataフォルダをDockerコンテナの/root/data_windows ($HOME/data_windows)としてマウントする
+$WINDOWS_HOST_MOUNT_PATH = 'C:/Apps/data'  # C:/App/dataフォルダをDockerコンテナの/root/data_windows ($HOME/data_windows)としてマウントする
 $UBUNTU_HOST_MOUNT_PATH = '/home/ubuntu/data'  # 自動作成されたdocker-desktopは16GBなので不適切。そのためUbuntuのディレクトリをDockerコンテナの/root/data_ubuntu ($HOME/data_ubuntu)としてマウントする
 $DOCKER_WINDOWS_HOST_MOUNT_PATH = "/root/data_windows"
 $DOCKER_UBUNTU_HOST_MOUNT_PATH = "/root/data_ubuntu"
