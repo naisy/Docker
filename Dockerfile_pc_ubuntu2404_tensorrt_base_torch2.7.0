@@ -432,6 +432,12 @@ RUN apt-get update \
       libgstreamer1.0-dev \
       libgstreamer-plugins-base1.0-dev \
       libgstrtspserver-1.0-dev \
+      gstreamer1.0-tools \
+      gstreamer1.0-plugins-base \
+      gstreamer1.0-plugins-good \
+      gstreamer1.0-plugins-bad \
+      gstreamer1.0-plugins-ugly \
+      gstreamer1.0-libav \
     && apt autoremove -y \
     && rm -rf /var/lib/apt/lists/*
 
@@ -565,6 +571,7 @@ RUN apt-get update \
       shared-mime-info \
       ssh \
       supervisor \
+      tcpdump \
       texlive \
       texlive-fonts-extra \
       texlive-fonts-recommended \
@@ -937,10 +944,6 @@ RUN . /virtualenv/$VENV/bin/activate \
     && pip install --no-cache-dir --no-build-isolation \
         flash_attn
 
-RUN . /virtualenv/$VENV/bin/activate \
-    && pip install --no-cache-dir --no-build-isolation \
-        flash_attn
-
 # for HRM https://github.com/sapientinc/HRM
 # for pgvector/RAG
 RUN . /virtualenv/$VENV/bin/activate \
@@ -950,6 +953,7 @@ RUN . /virtualenv/$VENV/bin/activate \
       hydra-core \
       adam-atan2 \
       python-dotenv \
+      PyQt5 \
       psycopg2-binary \
       pgvector \
       psycopg[binary] \
@@ -1115,12 +1119,4 @@ RUN sudo apt-get update \
          docker-cli \
     && sudo apt autoremove -y \
     && sudo rm -rf /var/lib/apt/lists/*
-
-
-########################################
-# 追加pipパッケージ
-########################################
-RUN . /virtualenv/$VENV/bin/activate \
-    && pip install --no-cache-dir \
-      PyQt5
 

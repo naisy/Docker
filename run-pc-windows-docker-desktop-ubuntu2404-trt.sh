@@ -47,6 +47,11 @@ jupyter lab \
 # /dev/null や /dev/urandom、ネットワーク関連のデバイスが壊れて名前解決や通信がまともに動かなくなる。
 #     --mount type=bind,source=/dev/,target=/dev/ `
 
+
+$GST_RTP_PORT = 5004  # GStreamer RTPポート(UDP)
+$GST_RTCP_PORT = 5005  # GStreamer RTCPポート(UDP)
+$JOYSTICK_UDP_PORT = 5010  # Joystickの値を受信するポートを用意しておく(UDP)
+
 docker run `
     --gpus all `
     --restart always `
@@ -60,7 +65,6 @@ docker run `
     -e WAYLAND_DISPLAY=$WAYLAND_DISPLAY `
     -e XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR `
     -e PULSE_SERVER=$PULSE_SERVER `
-    -e LIBGL_ALWAYS_INDIRECT=1 `
     -e NVIDIA_DRIVER_CAPABILITIES=all `
     -e QT_GRAPHICSSYSTEM=native `
     -e QT_X11_NO_MITSHM=1 `
@@ -70,6 +74,9 @@ docker run `
     -e SHELL=/bin/bash `
     -e TZ=Asia/Tokyo `
     -p ${PORT}:${PORT} `
+    -p ${GST_RTP_PORT}:$GST_RTP_PORT{}/udp `
+    -p ${GST_RTCP_PORT}:${GST_RTCP_PORT}/udp `
+    -p ${JOYSTICK_UDP_PORT}:${JOYSTICK_UDP_PORT}/udp `
     --add-host host.docker.internal:host-gateway `
     --name $NAME `
     $IMG `
