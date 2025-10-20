@@ -74,7 +74,7 @@ docker run `
     -e SHELL=/bin/bash `
     -e TZ=Asia/Tokyo `
     -p ${PORT}:${PORT} `
-    -p ${GST_RTP_PORT}:$GST_RTP_PORT{}/udp `
+    -p ${GST_RTP_PORT}:${GST_RTP_PORT}/udp `
     -p ${GST_RTCP_PORT}:${GST_RTCP_PORT}/udp `
     -p ${JOYSTICK_UDP_PORT}:${JOYSTICK_UDP_PORT}/udp `
     --add-host host.docker.internal:host-gateway `
