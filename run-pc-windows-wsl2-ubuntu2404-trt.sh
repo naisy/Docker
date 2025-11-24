@@ -33,6 +33,7 @@ fi
 # ========= 起動 =========
 echo "== Starting container on host network..."
 CID=$(docker run \
+  --shm-size=16g \
   --gpus all \
   --restart always \
   -itd \
