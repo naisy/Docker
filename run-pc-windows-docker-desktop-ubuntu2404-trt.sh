@@ -51,6 +51,7 @@ jupyter lab \
 $GST_RTP_PORT = 5004  # GStreamer RTPポート(UDP)
 $GST_RTCP_PORT = 5005  # GStreamer RTCPポート(UDP)
 $JOYSTICK_UDP_PORT = 5010  # Joystickの値を受信するポートを用意しておく(UDP)
+$TENSORBOARD_PORT = 6006  # Tensorboard TCPポート(TCP)
 
 docker run `
     --gpus all `
@@ -77,8 +78,8 @@ docker run `
     -p ${GST_RTP_PORT}:${GST_RTP_PORT}/udp `
     -p ${GST_RTCP_PORT}:${GST_RTCP_PORT}/udp `
     -p ${JOYSTICK_UDP_PORT}:${JOYSTICK_UDP_PORT}/udp `
+    -p ${TENSORBOARD_PORT}:${TENSORBOARD_PORT} `
     --add-host host.docker.internal:host-gateway `
     --name $NAME `
     $IMG `
 bash -lc "$BashCmd"
-
