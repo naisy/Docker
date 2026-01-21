@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # ========= 変数 =========
-IMG='naisy/pc-ubuntu2404-trt-base:torch2.7.0'
+IMG='naisy/pc-ubuntu2404-trt-base:torch2.9.0'
 PORT=8890
 NAME='trt2404'
 WINDOWS_HOST_MOUNT_PATH='/mnt/c/Apps/data'
@@ -72,4 +72,3 @@ timeout 5s docker logs -f "${CID}" || true
 echo "== Open Jupyter: http://127.0.0.1:${PORT}"
 echo "== To see GUI test inside container:"
 echo "   docker exec -it ${NAME} bash -lc 'gst-launch-1.0 videotestsrc ! videoconvert ! waylandsink sync=false'"
-
