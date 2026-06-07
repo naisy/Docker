@@ -2,7 +2,7 @@
 ########################################
 # Docker build
 ########################################
-#time sudo docker build -t naisy/jetson-jp61_62-deepstream71-triton-base -f Dockerfile_jetson-jp61_62-deepstream71-triton-base .
+#time sudo docker build -t naisy/jetson-jp61_62-deepstream71-triton-base -f Dockerfile_jetson_jp61_62-deepstream71-triton-base .
 
 # docker push
 #docker login --username=naisy
@@ -1256,6 +1256,9 @@ RUN sudo rm -f /etc/apt/sources.list.d/nvidia-jetpack-r36.list \
 RUN sudo apt-get update \
     && sudo apt-get install --reinstall -y \
       evtest \
+      usbutils \
+      kmod \
+      udev \
     && sudo apt autoremove -y \
     && sudo rm -rf /var/lib/apt/lists/*
 

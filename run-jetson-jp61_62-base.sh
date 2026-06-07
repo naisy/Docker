@@ -88,6 +88,7 @@ docker run \
     --mount type=bind,source=/etc/enctune.conf,target=/etc/enctune.conf,readonly \
     --mount type=bind,source=/tmp/,target=/tmp/ \
     --mount type=bind,source=/usr/lib/aarch64-linux-gnu/tegra,target=/usr/lib/aarch64-linux-gnu/tegra,readonly \
+    --mount type=bind,source=/dev/input,target=/dev/input \
     -u $DOCKER_USER \
     --privileged \
     --ipc=host \
