@@ -1,0 +1,30 @@
+# Claude Code
+.claude/
+CLAUDE.md
+CLAUDE.local.md
+.mcp.json
+
+# Codex
+.codex/
+AGENTS.md
+AGENTS.override.md
+
+# docker buildx --cache-to=type=local
+.buildx-cache/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.cache/
+
+# JupyterLab
+.ipynb_checkpoints/
+# jupyterlab-lsp
+.virtual_documents/
+# jupyter-collaboration
+.jupyter_ystore.db*
+# JupyterLabで削除したファイルのゴミ箱(send2trash)
+.Trash-*/

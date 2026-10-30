@@ -1,0 +1,1238 @@
+########################################
+# Docker build
+########################################
+# Host: CUDA 13.4に対応したNVIDIAドライバ
+# セキュリティ更新を取り込む場合は --pull --no-cache を付けてビルドする
+#time docker build --progress=plain -t naisy/pc-ubuntu2604-trt-base:torch2.14.1 -f Dockerfile_pc_ubuntu2604_tensorrt_base_torch2.14.1 .
+# docker push
+#docker login --username=naisy
+#docker images
+#docker push naisy/pc-ubuntu2604-trt-base
+
+
+#sudo service docker stop
+#cd /var/lib
+#sudo mv docker /mnt/ssd250
+#sudo ln -s /mnt/ssd250 docker
+#sudo service docker start
+
+# https://github.com/NVIDIA/nvidia-docker/issues/1033
+# cmake fails unable to find cuda library while building an image
+#vi /etc/docker/daemon.json
+#{
+#    "runtimes": {
+#        "nvidia": {
+#            "path": "/usr/bin/nvidia-container-runtime",
+#            "runtimeArgs": []
+#        }
+#    },
+#    "default-runtime": "nvidia"
+#}
+#
+#service docker stop
+#service docker start
+
+
+# end of information
+
+
+########################################
+# Underlying OS repogitory
+########################################
+# https://hub.docker.com/r/nvidia/cuda
+# https://catalog.ngc.nvidia.com/
+# cat /etc/os-release
+# nvcc --version
+# dpkg -l | grep TensorRT
+# nvidia/cuda:13.4.3-cudnn-devel-ubuntu26.04: Ubuntu 26.04.1/CUDA 13.4.3/Python3.14/cuDNN 9.27.0.42 (TensorRTはCUDAリポジトリからapt)
+# nvidia/cudaのtensorrtタグ(13.4.3-tensorrt-devel-ubuntu26.04等)はarm64のみ
+# nvcr.io/nvidia/tensorrt:26.09-py3: Ubuntu 24.04/CUDA 13.4.1/TensorRT 11.3.0.99
+# nvcr.io/nvidia/tensorrt:25.12-py3: Ubuntu 24.04.3/CUDA 13.1/Python3.12/TensorRT 10.14.1.48+cuda13.0
+# nvcr.io/nvidia/tensorrt:25.04-py3: Ubuntu 24.04.2/CUDA 12.9/Python3.12/TensorRT 10.9.0.34
+# nvcr.io/nvidia/tensorrt:25.02-py3: Ubuntu 24.04/CUDA 12.8/Python3.12/TensorRT 10.8.0.43-1+cuda12.8
+# nvcr.io/nvidia/tensorrt:25.01-py3: Ubuntu 24.04/CUDA 12.8/Python3.12/TensorRT 10.8.0.43-1+cuda12.8
+# nvcr.io/nvidia/tensorrt:24.12-py3: Ubuntu 24.04/CUDA 12.6/Python3.12/TensorRT 10.7.0
+# nvcr.io/nvidia/tensorrt:24.08-py3: Ubuntu 22.04/CUDA 12.6/Python 3.10/TensorRT 10.3.0
+# nvcr.io/nvidia/tensorrt:24.04-py3: Ubuntu 22.04/CUDA 12.4/Python 3.10/TensorRT 8.6.3
+# lsb_release -a
+# nvcc --version
+# pip list installed
+FROM nvidia/cuda:13.4.3-cudnn-devel-ubuntu26.04
+
+########################################
+# ENV
+########################################
+ARG DEBIAN_FRONTEND=noninteractive
+
+
+# apt-cache madison cuda-compat-11-2
+# apt-cache policy cuda-compat-11-2
+
+########################################
+# apt fix
+########################################
+# Because sometime the repository is 404, use with --fix-missing option.
+RUN rm -rf /var/lib/apt/lists/* \
+    && apt-get --fix-missing update \
+    && apt-get upgrade -y --no-remove \
+    && apt-get install -y \
+      apt-utils \
+      apt-file \
+      lsb-release \
+    # change the locale from POSIX to UTF-8
+    && apt-get install -y \
+      locales \
+      file \
+    && locale-gen en_US en_US.UTF-8 \
+    && update-locale LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8 \
+    && apt autoremove -y \
+    && rm -rf /var/lib/apt/lists/*
+
+ENV LANG=en_US.UTF-8
+
+
+########################################
+# CUDA library path for build environment
+########################################
+#cat /etc/ld.so.conf.d/x86_64-linux-gnu.conf
+## Multiarch support
+#/lib/x86_64-linux-gnu
+#/usr/lib/x86_64-linux-gnu
+RUN echo "# Multiarch support" > /etc/ld.so.conf.d/x86_64-linux-gnu.conf \
+    && echo /usr/lib/x86_64-linux-gnu >> /etc/ld.so.conf.d/x86_64-linux-gnu.conf \
+    && echo /lib/x86_64-linux-gnu >> /etc/ld.so.conf.d/x86_64-linux-gnu.conf \
+    && ldconfig
+
+# stubsは実態を持たないビルド時のリンカ用。実行時は指定してはいけないので外しておく
+# echo /usr/local/cuda/targets/x86_64-linux/lib/stubs >> /etc/ld.so.conf.d/x86_64-linux-gnu.conf \
+
+
+########################################
+# TensorRT / Nsight Systems
+########################################
+# venvのtensorrt(pip)と同じバージョンに固定する
+# libnvinfer-bin: /usr/bin/trtexec
+ARG TENSORRT_APT_VERSION=11.4.0.106-1+cuda13.4
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+      tensorrt-libs=$TENSORRT_APT_VERSION \
+      tensorrt-dev=$TENSORRT_APT_VERSION \
+      libnvinfer-bin=$TENSORRT_APT_VERSION \
+      cuda-nsight-systems-13-4 \
+    && apt-mark hold tensorrt-libs tensorrt-dev libnvinfer-bin \
+    && rm -rf /var/lib/apt/lists/*
+
+
+########################################
+# XAuthority
+########################################
+RUN apt-get update \
+    && apt-get install -y \
+      sudo \
+      xauth \
+      dbus-x11 \
+      xterm \
+    && apt autoremove -y \
+    && rm -rf /var/lib/apt/lists/*
+#Add new sudo user
+
+# Ubuntu 24.04からubuntuユーザが存在している
+ARG USERNAME=ubuntu
+#RUN useradd -m $USERNAME \
+#    && echo "$USERNAME:$USERNAME" | chpasswd \
+#    && usermod --shell /bin/bash $USERNAME \
+#    && usermod -aG sudo,adm,dialout,cdrom,audio,dip,video,plugdev $USERNAME \
+#    && echo "$USERNAME ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers.d/$USERNAME \
+#    && chmod 0440 /etc/sudoers.d/$USERNAME \
+#    # Replace 1000 with your user/group id
+#    && usermod  --uid 1000 $USERNAME \
+#    && groupmod --gid 1000 $USERNAME
+
+RUN echo "$USERNAME ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers.d/$USERNAME \
+    && chmod 0440 /etc/sudoers.d/$USERNAME \
+    # Replace 1000 with your user/group id
+    && usermod  --uid 1000 $USERNAME \
+    && groupmod --gid 1000 $USERNAME
+
+
+########################################
+# bash setting
+########################################
+# sed
+# escape characters \'$.*/[]^
+# 1. Write the regex between single quotes.
+# 2. \ -> \\
+# 3. ' -> '\''
+# 4. Put a backslash before $.*/[]^ and only those characters.
+
+
+####################
+# USER
+####################
+# before
+# #force_color_prompt=yes
+# after
+# force_color_prompt=yes
+
+# before
+#    PS1='${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
+# after
+#    PS1='${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\[\033[01;31m\]docker-\h\[\033[00m\]:\[\033[01;35m\]\w\[\033[00m\]\$ '
+
+
+# before
+# alias ls='ls --color=auto'
+# after
+# alias ls='ls -asiF --color=auto'
+
+RUN sed -i 's/#force_color_prompt=yes/force_color_prompt=yes/g' /home/$USERNAME/.bashrc \
+    && sed -i 's/PS1='\''\${debian_chroot:+(\$debian_chroot)}\\\[\\033\[01;32m\\\]\\u@\\h\\\[\\033\[00m\\\]:\\\[\\033\[01;34m\\\]\\w\\\[\\033\[00m\\\]\\\$ '\''/PS1='\''\${debian_chroot:+(\$debian_chroot)}\\\[\\033\[01;32m\\\]\\u@\\\[\\033\[01;31m\\\]docker-\\h\\\[\\033\[00m\\\]:\\\[\\033\[01;35m\\\]\\w\\\[\\033\[00m\\\]\\\$ '\''/g' /home/$USERNAME/.bashrc \
+    && sed -i 's/alias ls='\''ls --color=auto'\''/alias ls='\''ls -asiF --color=auto'\''/g' /home/$USERNAME/.bashrc \
+    && echo "alias xterm='xterm -fa \"Monospace\" -fs 10 -fg white -bg black'" >> /home/$USERNAME/.bashrc \
+    && echo 'export LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu:/usr/local/cuda/targets/x86_64-linux/lib:/usr/local/lib:$LD_LIBRARY_PATH' >> /home/$USERNAME/.bashrc \
+    && echo 'export LANG=en_US.UTF-8' >> /home/$USERNAME/.bashrc \
+    && echo 'export NO_AT_BRIDGE=1' >> /home/$USERNAME/.bashrc \
+    && echo 'export PATH=$PATH:/usr/src/tensorrt/bin' >> /home/$USERNAME/.bashrc \
+    && echo 'cd' >> /home/$USERNAME/.bashrc \
+    && echo "complete -d cd" >> /home/$USERNAME/.bashrc
+
+
+####################
+# ROOT
+####################
+# before
+#    xterm-color) color_prompt=yes;;
+# after
+#    xterm-color|*-256color) color_prompt=yes;;
+
+# before
+#    PS1='${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
+
+# after
+#    PS1='${debian_chroot:+($debian_chroot)}\[\033[01;37m\]\u@\[\033[01;31m\]docker-\h\[\033[00m\]:\[\033[01;35m\]\w\[\033[00m\]\$ '
+
+# before
+# alias ls='ls --color=auto'
+# after
+# alias ls='ls -asiF --color=auto'
+
+RUN sed -i 's/xterm-color) color_prompt=yes;;/xterm-color|\*-256color) color_prompt=yes;;/g' /root/.bashrc \
+    && sed -i 's/#force_color_prompt=yes/force_color_prompt=yes/g' /root/.bashrc \
+    && sed -i 's/PS1='\''\${debian_chroot:+(\$debian_chroot)}\\\[\\033\[01;32m\\\]\\u@\\h\\\[\\033\[00m\\\]:\\\[\\033\[01;34m\\\]\\w\\\[\\033\[00m\\\]\\\$ '\''/PS1='\''\${debian_chroot:+(\$debian_chroot)}\\\[\\033\[01;37m\\\]\\u@\\\[\\033\[01;31m\\\]docker-\\h\\\[\\033\[00m\\\]:\\\[\\033\[01;35m\\\]\\w\\\[\\033\[00m\\\]\\\$ '\''/g' /root/.bashrc \
+    && sed -i 's/alias ls='\''ls --color=auto'\''/alias ls='\''ls -asiF --color=auto'\''/g' /root/.bashrc \
+    && echo "alias xterm='xterm -fa \"Monospace\" -fs 10 -fg white -bg black'" >> /root/.bashrc \
+    && echo 'export LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu:/usr/local/cuda/targets/x86_64-linux/lib:/usr/local/lib:$LD_LIBRARY_PATH' >> /root/.bashrc \
+    && echo 'export LANG=en_US.UTF-8' >> /root/.bashrc \
+    && echo 'export NO_AT_BRIDGE=1' >> /root/.bashrc \
+    && echo 'export PATH=$PATH:/usr/src/tensorrt/bin' >> /root/.bashrc \
+    && echo "complete -d cd" >> /root/.bashrc
+
+
+#########################################
+# .dircolors
+########################################
+# end of line: \n\
+# ': '"'"'
+
+RUN printf '# dircolors -p > ~/.dircolors\n\
+# vi ~/.dircolors\n\
+# man dircolors\n\
+\n\
+# Configuration file for dircolors, a utility to help you set the\n\
+# LS_COLORS environment variable used by GNU ls with the --color option.\n\
+# Copyright (C) 1996-2016 Free Software Foundation, Inc.\n\
+# Copying and distribution of this file, with or without modification,\n\
+# are permitted provided the copyright notice and this notice are preserved.\n\
+# The keywords COLOR, OPTIONS, and EIGHTBIT (honored by the\n\
+# slackware version of dircolors) are recognized but ignored.\n\
+# Below are TERM entries, which can be a glob patterns, to match\n\
+# against the TERM environment variable to determine if it is colorizable.\n\
+TERM Eterm\n\
+TERM ansi\n\
+TERM color-xterm\n\
+TERM con[0-9]*x[0-9]*\n\
+TERM cons25\n\
+TERM console\n\
+TERM cygwin\n\
+TERM dtterm\n\
+TERM eterm-color\n\
+TERM gnome\n\
+TERM gnome-256color\n\
+TERM hurd\n\
+TERM jfbterm\n\
+TERM konsole\n\
+TERM kterm\n\
+TERM linux\n\
+TERM linux-c\n\
+TERM mach-color\n\
+TERM mach-gnu-color\n\
+TERM mlterm\n\
+TERM putty\n\
+TERM putty-256color\n\
+TERM rxvt*\n\
+TERM screen*\n\
+TERM st\n\
+TERM st-256color\n\
+TERM terminator\n\
+TERM tmux*\n\
+TERM vt100\n\
+TERM xterm*\n\
+# Below are the color init strings for the basic file types. A color init\n\
+# string consists of one or more of the following numeric codes:\n\
+# Attribute codes:\n\
+# 00=none 01=bold 04=underscore 05=blink 07=reverse 08=concealed\n\
+# Text color codes:\n\
+# 30=black 31=red 32=green 33=yellow 34=blue 35=magenta 36=cyan 37=white\n\
+# Background color codes:\n\
+# 40=black 41=red 42=green 43=yellow 44=blue 45=magenta 46=cyan 47=white\n\
+#NORMAL 00 # no color code at all\n\
+#FILE 00 # regular file: use no color at all\n\
+RESET 0 # reset to "normal" color\n\
+DIR 01;35 # directory\n\
+LINK 01;36 # symbolic link. (If you set this to '"'"'target'"'"' instead of a\n\
+ # numerical value, the color is as for the file pointed to.)\n\
+MULTIHARDLINK 00 # regular file with more than one link\n\
+FIFO 40;99 # pipe\n\
+SOCK 01;32 # socket\n\
+DOOR 01;32 # door\n\
+BLK 40;99;01 # block device driver\n\
+CHR 40;99;01 # character device driver\n\
+ORPHAN 40;31;01 # symlink to nonexistent file, or non-stat'"'"'able file ...\n\
+MISSING 00 # ... and the files they point to\n\
+SETUID 37;41 # file that is setuid (u+s)\n\
+SETGID 30;43 # file that is setgid (g+s)\n\
+CAPABILITY 30;41 # file with capability\n\
+STICKY_OTHER_WRITABLE 30;42 # dir that is sticky and other-writable (+t,o+w)\n\
+OTHER_WRITABLE 35;42 # dir that is other-writable (o+w) and not sticky\n\
+STICKY 37;44 # dir with the sticky bit set (+t) and not other-writable\n\
+# This is for files with execute permission:\n\
+EXEC 01;31\n\
+# List any file extensions like '"'"'.gz'"'"' or '"'"'.tar'"'"' that you would like ls\n\
+# to colorize below. Put the extension, a space, and the color init string.\n\
+# (and any comments you want to add after a '"'"'#'"'"')\n\
+# If you use DOS-style suffixes, you may want to uncomment the following:\n\
+#.cmd 01;31 # executables (bright green)\n\
+#.exe 01;31\n\
+#.com 01;31\n\
+#.btm 01;31\n\
+#.bat 01;31\n\
+# Or if you want to colorize scripts even if they do not have the\n\
+# executable bit actually set.\n\
+#.sh 01;31\n\
+#.csh 01;31\n\
+ # archives or compressed (bright red)\n\
+.tar 01;33\n\
+.tgz 01;33\n\
+.arc 01;33\n\
+.arj 01;33\n\
+.taz 01;33\n\
+.lha 01;33\n\
+.lz4 01;33\n\
+.lzh 01;33\n\
+.lzma 01;33\n\
+.tlz 01;33\n\
+.txz 01;33\n\
+.tzo 01;33\n\
+.t7z 01;33\n\
+.zip 01;33\n\
+.z 01;33\n\
+.Z 01;33\n\
+.dz 01;33\n\
+.gz 01;33\n\
+.lrz 01;33\n\
+.lz 01;33\n\
+.lzo 01;33\n\
+.xz 01;33\n\
+.bz2 01;33\n\
+.bz 01;33\n\
+.tbz 01;33\n\
+.tbz2 01;33\n\
+.tz 01;33\n\
+.deb 01;33\n\
+.rpm 01;33\n\
+.jar 01;33\n\
+.war 01;33\n\
+.ear 01;33\n\
+.sar 01;33\n\
+.rar 01;33\n\
+.alz 01;33\n\
+.ace 01;33\n\
+.zoo 01;33\n\
+.cpio 01;33\n\
+.7z 01;33\n\
+.rz 01;33\n\
+.cab 01;33\n\
+# image formats\n\
+.jpg 01;32\n\
+.jpeg 01;32\n\
+.gif 01;32\n\
+.bmp 01;32\n\
+.pbm 01;32\n\
+.pgm 01;32\n\
+.ppm 01;32\n\
+.tga 01;32\n\
+.xbm 01;32\n\
+.xpm 01;32\n\
+.tif 01;32\n\
+.tiff 01;32\n\
+.png 01;32\n\
+.svg 01;32\n\
+.svgz 01;32\n\
+.mng 01;32\n\
+.pcx 01;32\n\
+.mov 01;32\n\
+.mpg 01;32\n\
+.mpeg 01;32\n\
+.m2v 01;32\n\
+.mkv 01;32\n\
+.webm 01;32\n\
+.ogm 01;32\n\
+.mp4 01;32\n\
+.m4v 01;32\n\
+.mp4v 01;32\n\
+.vob 01;32\n\
+.qt 01;32\n\
+.nuv 01;32\n\
+.wmv 01;32\n\
+.asf 01;32\n\
+.rm 01;32\n\
+.rmvb 01;32\n\
+.flc 01;32\n\
+.avi 01;32\n\
+.fli 01;32\n\
+.flv 01;32\n\
+.gl 01;32\n\
+.dl 01;32\n\
+.xcf 01;32\n\
+.xwd 01;32\n\
+.yuv 01;32\n\
+.cgm 01;32\n\
+.emf 01;32\n\
+# http://wiki.xiph.org/index.php/MIME_Types_and_File_Extensions\n\
+.axv 01;32\n\
+.anx 01;32\n\
+.ogv 01;32\n\
+.ogx 01;32\n\
+# audio formats\n\
+.aac 00;36\n\
+.au 00;36\n\
+.flac 00;36\n\
+.m4a 00;36\n\
+.mid 00;36\n\
+.midi 00;36\n\
+.mka 00;36\n\
+.mp3 00;36\n\
+.mpc 00;36\n\
+.ogg 00;36\n\
+.ra 00;36\n\
+.wav 00;36\n\
+# http://wiki.xiph.org/index.php/MIME_Types_and_File_Extensions\n\
+.axa 00;36\n\
+.oga 00;36\n\
+.opus 00;36\n\
+.spx 00;36\n\
+.xspf 00;36\n'\
+> /root/.dircolors && cp /root/.dircolors /home/$USERNAME/.dircolors && chown $USERNAME:$USERNAME /home/$USERNAME/.dircolors
+
+
+########################################
+# Default Command
+########################################
+#CMD bash -c "/usr/bin/xterm -fa 'Monospace' -fs 10"
+#CMD bash -c "/bin/bash"
+
+
+### END GUI ###
+
+
+########################################
+# Packages
+########################################
+RUN apt-get update \
+    && apt-get install -y \
+      libgstreamer1.0-0 \
+      libgstreamer1.0-dev \
+      libgstreamer-plugins-base1.0-dev \
+      libgstrtspserver-1.0-dev \
+      gstreamer1.0-tools \
+      gstreamer1.0-plugins-base \
+      gstreamer1.0-plugins-good \
+      gstreamer1.0-plugins-bad \
+      gstreamer1.0-plugins-ugly \
+      gstreamer1.0-libav \
+    && apt autoremove -y \
+    && rm -rf /var/lib/apt/lists/*
+
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+      arp-scan \
+      ca-certificates \
+      colortest \
+      curl \
+      dialog \
+      fonts-liberation \
+      fonts-noto-cjk \
+      g++ \
+      gcc \
+      gfortran \
+      gir1.2-glib-2.0 \
+      gir1.2-gstreamer-1.0 \
+      gir1.2-gtk-3.0 \
+      git \
+      git-lfs \
+      gnupg2 \
+      graphviz \
+      hdf5-tools \
+      htop \
+      iproute2 \
+      iptables \
+      iputils-ping \
+      less \
+      libaio-dev \
+      libavcodec-dev \
+      libavcodec-extra \
+      libavcodec-extra62 \
+      libavformat-dev \
+      libblas-dev \
+      libblkid-dev \
+      libbz2-dev \
+      libcairo2-dev \
+      libcap2-bin \
+      libc++-dev \
+      libcgal-dev \
+      libcurl4-openssl-dev \
+      libdw1t64 \
+      libdw-dev \
+      libelf-dev \
+      libffi-dev \
+      libfreetype-dev \
+      libgeos-dev \
+      libgirepository-1.0-1 \
+      libgirepository1.0-dev \
+      libglib2.0-0t64 \
+      libglib2.0-bin \
+      libglib2.0-data \
+      libglib2.0-dev \
+      libglib2.0-dev-bin \
+      libhdf5-dev \
+      libjpeg8-dev \
+      libjpeg-dev \
+      liblapack-dev \
+      liblzma-dev \
+      libmount-dev \
+      libmtdev-dev \
+      libncurses-dev \
+      libopenblas-dev \
+      libopengl0 \
+      libopenmpi-dev \
+      libpam-cap \
+      libpcre2-16-0 \
+      libpcre2-32-0 \
+      libpcre2-dev \
+      libpcre2-posix3 \
+      libpng-dev \
+      libportmidi-dev \
+      libprotobuf-dev \
+      libpython3.14-minimal \
+      libpython3.14-stdlib \
+      libpython3-dev \
+      libpython3-stdlib \
+      libreadline-dev \
+      libsdl2-dev \
+      libsdl2-gfx-dev \
+      libsdl2-image-dev \
+      libsdl2-mixer-dev \
+      libsdl2-net-dev \
+      libsdl2-ttf-dev \
+      libselinux-dev \
+      libsepol-dev \
+      libsqlite3-dev \
+      libssl-dev \
+      libswscale-dev \
+      libx11-dev \
+      libxml2-dev \
+      libxcb-icccm4 \
+      libxcb-image0 \
+      libxcb-keysyms1 \
+      libxcb-render-util0 \
+      libxcb-shape0 \
+      libxkbfile1 \
+      libxslt1-dev \
+      locate \
+      lsb-release \
+      make \
+      mediainfo \
+      media-types \
+      mesa-utils \
+      net-tools \
+      ninja-build \
+      openmpi-bin \
+      openssl \
+      pandoc \
+      pkg-config \
+      protobuf-compiler \
+      python3 \
+      python3.14 \
+      python3.14-minimal \
+      python3-dev \
+      python3-gi \
+      python3-gi-cairo \
+      python3-gst-1.0 \
+      python3-minimal \
+      python3-pip \
+      python3-tk \
+      rsync \
+      scons \
+      shared-mime-info \
+      ssh \
+      supervisor \
+      # pyswip用のSWI-Prolog \
+      swi-prolog-nox \
+      tcpdump \
+      texlive \
+      texlive-fonts-extra \
+      texlive-fonts-recommended \
+      texlive-xetex \
+      tree \
+      unzip \
+      uuid-dev \
+      v4l-utils \
+      vim \
+      wget \
+      xclip \
+      xdg-user-dirs \
+      xterm \
+      zip \
+      zlib1g-dev \
+    ### Google Chrome \
+    && wget -O /tmp/google-chrome-stable_current_amd64.deb https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb \
+    && dpkg -i /tmp/google-chrome-stable_current_amd64.deb || apt-get -f install -y \
+    && rm -f /tmp/google-chrome-stable_current_amd64.deb \
+    && CHROME_VERSION=$(google-chrome --version | awk '{print $3}') \
+    && wget -O /tmp/chromedriver-linux64.zip "https://storage.googleapis.com/chrome-for-testing-public/${CHROME_VERSION}/linux64/chromedriver-linux64.zip" \
+    && unzip -j /tmp/chromedriver-linux64.zip -d /usr/local/bin/ \
+    && chmod +x /usr/local/bin/chromedriver \
+    && rm -rf /tmp/chromedriver-linux64.zip \
+    ### supervisor \
+    && mkdir -p /var/log/supervisor \
+    && chown -R $USERNAME:$USERNAME /var/log/supervisor \
+    && chmod -R 755 /var/log/supervisor \
+    && apt autoremove -y \
+    && rm -rf /var/lib/apt/lists/*
+
+
+########################################
+# ~/.vimrc
+########################################
+USER $USERNAME
+RUN echo 'syntax enable\n\
+set background=dark'\
+>  ~/.vimrc
+USER root
+RUN echo 'syntax enable\n\
+set background=dark'\
+>  ~/.vimrc
+
+
+
+### END GUI ###
+
+
+########################################
+# CMake 4.4.5
+########################################
+USER $USERNAME
+RUN mkdir -p ~/github \
+    && cd ~/github \
+    && sudo apt-get update \
+    && sudo apt-get remove -y \
+      cmake \
+    && git clone https://github.com/Kitware/CMake.git --depth 1 -b v4.4.5 \
+    && cd CMake \
+    && ./bootstrap --system-curl \
+    && make -j$(nproc) \
+    && sudo make install \
+    && rm -rf ~/github \
+    && sudo apt autoremove -y \
+    && sudo rm -rf /var/lib/apt/lists/*
+
+
+########################################
+# pip
+########################################
+ARG VENV=python3
+# pip自身にもcertifiが同梱されるため、仮想環境を作る前にsystem側も更新する
+# https://discuss.python.org/t/information-for-python-users-regarding-emudhra-emsign-ca-certificate-security-incident/109576
+# 既知のSHA256を指定して、更新前の証明書ストアに依存せずpipを更新する
+# Ubuntu 26.04のpipはapt管理(RECORDなし)でアンインストールできないため、--ignore-installedで/usr/localに入れる
+RUN sudo python3 -m pip install --no-cache-dir --break-system-packages --upgrade --ignore-installed \
+      "pip @ https://files.pythonhosted.org/packages/3f/06/3e4420302363fbb71be3c7f35ce042f54bfca330e3e66b3a2e3c4cca579f/pip-26.2.2-py3-none-any.whl#sha256=fd7f4dfa8190e014013b9f08f3e973f4e4c26ffd179a204895533a7254813a70" \
+    # apt管理のPythonパッケージは削除せず、更新版を/usr/localにインストールする \
+    && sudo python3 -m pip install --no-cache-dir --break-system-packages --ignore-installed --no-deps \
+      certifi==2026.10.23 \
+      jaraco.context==6.1.2 \
+      Mako==1.4.3 \
+      Markdown==3.11.2 \
+      pillow==13.0.0 \
+      setuptools==84.2.1 \
+      wheel==0.48.0
+
+RUN sudo mkdir /virtualenv \
+    && sudo chown $USERNAME:$USERNAME /virtualenv
+
+
+# python3 -m virtualenv -p python3 /virtualenv/$VENV --system-site-packages
+# これはsystem-site-packagesを引き継ぐ設定。しかし、これは~/.local/lib/python3.6/site-packages/以下にコピーされる
+# ~/.local/というのが問題になる。ユーザ個別設定となる。ここにあるライブラリをROS2で使いたい場合に、環境変数PYTHONPATHで指定する必要がある。
+# 特定ユーザのホームディレクトリにあるPATHを指定するということは避けたい。そのため--system-site-packagesは指定しない。
+# すべてのpipライブラリは作成した/virtualenv/python3/lib/python3.6/site-packages/以下に完結するように管理する
+# --system-site-packagesは引き継がないことにする。理由はsetuptoolsのバージョンが低いため。system側のsetuptoolsを更新する必要が生じてしまう。
+# https://github.com/pypa/setuptools/issues/1694#issuecomment-466010982
+#    && python3 -m virtualenv -p python3 /virtualenv/$VENV --system-site-packages \
+RUN python3 -m pip install --user --break-system-packages --no-cache-dir virtualenv==21.15.1 \
+   && export VENV_PROMPT=`python3 -V 2>&1 | awk '{print $1$2}' | tr P p` \
+   && python3 -m virtualenv -p python3 /virtualenv/$VENV --prompt $VENV_PROMPT \
+   && /virtualenv/$VENV/bin/python -m pip install --no-cache-dir --upgrade \
+      pip==26.2.2 \
+      certifi==2026.10.23 \
+   && echo "source /virtualenv/$VENV/bin/activate" >> ~/.bashrc
+
+
+# numpy/core/src/multiarray/numpyos.c:18:10: fatal error: xlocale.h: No such file or directory
+# #include <xlocale.h>
+RUN sudo ln -s /usr/include/locale.h /usr/include/xlocale.h
+
+
+########################################
+# TensorRT to Python virtualenv 
+########################################
+# system-packageとして存在するけど、他のpipパッケージの関連ライブラリのバージョンをtensorrtが要求するバージョンにあわせたいので、
+# tensorrtはバージョン指定でpipインストールする
+#RUN sudo ln -s /usr/local/lib/python3.12/dist-packages/tensorrt /virtualenv/$VENV/lib/python3.12/site-packages/tensorrt
+
+########################################
+# gi to Python virtualenv 
+########################################
+RUN sudo ln -s /usr/lib/python3/dist-packages/gi /virtualenv/$VENV/lib/python3.14/site-packages/gi
+
+##############################
+# https://stackoverflow.com/questions/4011705/python-the-imagingft-c-module-is-not-installed
+# https://hideharaaws.hatenablog.com/entry/2016/04/25/173153
+# ImportError: The _imagingft C module is not installed
+# freetypeを利用できないpillowがある。8.4.0を指定すると回避できる。
+##############################
+# 一覧
+# https://pypi.nvidia.com/
+
+# Dockerfileでのバージョンを決める前に、マニュアルで最新パッケージが入るかどうか確認する
+#pip install --no-cache-dir \
+#  beautifulsoup4 \
+#  Cython \
+#  certifi \
+#  cffi \
+#  charset-normalizer \
+#  cryptography \
+#  distro \
+#  filelock \
+#  gdown \
+#  httplib2 \
+#  idna \
+#  importlib-metadata \
+#  importlib-resources \
+#  jeepney \
+#  keyring \
+#  launchpadlib \
+#  numpy==1.26.4 \
+#  oauthlib \
+#  pbr \
+#  pip \
+#  pycparser \
+#  pyparsing \
+#  PySocks \
+#  SecretStorage \
+#  setuptools \
+#  six \
+#  soupsieve \
+#  testresources \
+#  tqdm \
+#  typing_extensions \
+#  wadllib \
+#  wheel \
+#  zipp
+
+
+# torch2.9.0版で固定していたバージョンを下限として最新版を入れる
+RUN . /virtualenv/$VENV/bin/activate \
+    && pip install --no-cache-dir \
+      "Cython>=3.1.2" \
+      "PySocks>=1.7.1" \
+      "SecretStorage>=3.3.3" \
+      "beautifulsoup4>=4.13.4" \
+      "certifi>=2026.10.23" \
+      "cffi>=2.1.1" \
+      "charset-normalizer>=3.4.2" \
+      "cryptography>=50.0.0" \
+      "distro>=1.9.0" \
+      "filelock>=4.2.1" \
+      "gdown>=5.2.2" \
+      "httplib2>=0.32.0" \
+      "idna>=3.15" \
+      "importlib-metadata>=8.7.0" \
+      "importlib-resources>=6.5.2" \
+      "jaraco.classes>=3.4.0" \
+      "jaraco.context>=6.1.0" \
+      "jaraco.functools>=4.2.1" \
+      "jeepney>=0.9.0" \
+      "keyring>=25.6.0" \
+      "launchpadlib>=2.1.0" \
+      "lazr.restfulclient>=0.14.6" \
+      "lazr.uri>=1.0.7" \
+      "more-itertools>=10.7.0" \
+      # numpy 2.2はPython 3.14用wheelがないため上限を外す \
+      numpy \
+      "oauthlib>=4.0.0" \
+      # setuptools 82以降で削除されたpkg_resourcesを使わないpbrに更新する \
+      "pbr>=7.1.3" \
+      "pycparser>=2.22" \
+      "pyparsing>=3.2.3" \
+      "requests>=2.33.0" \
+      "setuptools>=84.1.0" \
+      "six>=1.17.0" \
+      "soupsieve>=2.9.0" \
+      "testresources>=2.0.2" \
+      "tqdm>=4.67.1" \
+      "typing_extensions>=4.16.0" \
+      "urllib3>=2.8.0" \
+      "wadllib>=2.0.0" \
+      "wheel>=0.46.2" \
+      "zipp>=3.23.0"
+
+
+#pip install \
+#  torch \
+#  torchvision \
+#  torchaudio \
+#  xformers \
+#--index-url https://download.pytorch.org/whl/cu128
+
+# tensorrtはaptのTensorRT(TENSORRT_APT_VERSION)と同じバージョンにする
+# torch 2.14.1のCUDA 13系wheelはcu130/cu132まで。コンテナのCUDA 13.4とはメジャーバージョンが同じcu132を使う
+RUN . /virtualenv/$VENV/bin/activate \
+    && pip install  --no-cache-dir \
+        tensorrt==11.4.0.106 \
+        torch==2.14.1+cu132 \
+        torchvision==0.29.2+cu132 \
+        torchaudio==2.11.1+cu132 \
+  --index-url https://download.pytorch.org/whl/cu132 \
+  --extra-index-url https://pypi.org/simple \
+  --extra-index-url https://pypi.nvidia.com
+
+########################################
+# CUDA extensions for torch 2.14.1
+########################################
+# CUDA専用wheelはPyTorchのcu132リポジトリから取得する
+# https://github.com/pytorch/ao/issues/2919
+# xformersは入れない(2026-10-29時点)
+# cu132リポジトリになく、PyPIの0.0.35はtorch 2.10/Python 3.10/sm_90まで向けのビルドでCUDA拡張が読み込めない
+RUN . /virtualenv/$VENV/bin/activate \
+    && pip install --no-cache-dir \
+        torchao==0.18.0 \
+  --index-url https://download.pytorch.org/whl/cu132
+
+# https://github.com/jupyter-widgets/ipywidgets/issues/4001#issuecomment-3431246454
+# torch, torchvision, aorchaudio
+# https://pytorch.org/get-started/previous-versions/
+RUN . /virtualenv/$VENV/bin/activate \
+    && pip install  --no-cache-dir \
+        cmake \
+      # JupyterLab \
+        "jupyterlab>=4.6.4" \
+        "jupyter-server>=2.21.0" \
+        "nbconvert>=7.17.2" \
+        "bleach>=6.4.0" \
+        "mistune>=3.3.3" \
+        "tornado>=6.6" \
+        jupyter_bokeh \
+        jupyter_client \
+        ipykernel \
+        ipywidgets \
+        ipyevents \
+        ipycanvas \
+        ipympl \
+        nbdev \
+        Jinja2 \
+        zmq \
+        argon2_cffi \
+        jupyter_kernel_gateway \
+        jupyterlab-nvidia-nsight \
+        jupyterlab-nvdashboard \
+        jupyter-resource-usage \
+      # Generative AI \
+        boto3 \
+        "langchain>=1.3.9" \
+        "langchain-core>=1.4.7" \
+        "langchain-classic>=1.0.7" \
+        "langchain-text-splitters>=1.1.2" \
+        "langgraph>=1.2.14" \
+        "langgraph-checkpoint>=4.1.1,<5" \
+        "langgraph-sdk>=0.4.6" \
+        "langsmith>=0.8.18" \
+        langchain-community \
+        "langchain-openai>=1.1.14" \
+        langchain-aws \
+        azure-identity \
+        "msal>=1.39.0" \
+        azure-search-documents \
+        openai \
+        llama-index \
+        pdfminer.six \
+      # FastAPI/Flask \
+        uvicorn \
+        "Flask>=3.1.3" \
+      # AI
+        "fastapi>=0.162.0" \
+        "starlette>=1.3.1" \
+        "python-multipart>=0.0.31" \
+        "pydantic-settings>=2.14.2" \
+        "anyio>=4.14.2" \
+        "aiohttp>=3.14.4" \
+        "multidict>=6.9.1" \
+        "werkzeug>=3.1.9" \
+        imageio \
+        opencv_python \
+        numpy \
+        pkgconfig \
+        scikit-image \
+        scikit-learn \
+        scipy \
+        pandas \
+        matplotlib  \
+        "pillow>=13.0.0" \
+        regex \
+	tensorboard \
+      # Prolog
+        pyswip \
+      # PlantUML
+        iplantuml \
+        graphviz \
+      # Other
+        PyYAML \
+        lmdb \
+        lz4 \
+        cycler \
+        kiwisolver \
+        networkx \
+        httpcore \
+        httpx \
+        tifffile \
+        fastcore \
+        "GitPython>=3.2.1" \
+        "Mako>=1.4.2" \
+        "banks>=2.5.1" \
+        "nltk>=3.10.4" \
+        "msgpack>=1.2.3" \
+        "orjson>=3.11.6" \
+        "pypdf>=6.21.2" \
+        "PyJWT>=2.15.0" \
+        "Pygments>=2.20.0" \
+        "pyarrow>=23.0.1" \
+        "protobuf>=6.33.5" \
+        "safetensors>=0.8.0" \
+        fastrelease \
+        ghapi \
+        PyWavelets \
+        lazy_loader \
+        prompt_toolkit \
+        tiktoken \
+        wandb \
+        einops \
+        bitsandbytes \
+        "accelerate>=1.15.0" \
+        sentencepiece \
+        peft \
+        trl \
+        emoji \
+        neologdn \
+        "transformers>=5.10.4" \
+        jpholiday \
+      # LLM
+        "unsloth>=2026.10.10" \
+        "unsloth_zoo>=2026.10.10" \
+        optax \
+        datasets \
+      # Unslothはdatasets<5を要求するため、datasets/fsspecの既知脆弱性はこの構成では残る \
+        mecab-python3 \
+        unidic-lite \
+        pynvml \
+        deepspeed \
+        seaborn \
+        "sentence_transformers>=5.6.0" \
+        nGPT-pytorch \
+      # Torch
+        "onnx>=1.22.0" \
+        onnxruntime \
+        pytools \
+        pycairo \
+        pycuda \
+        polygraphy \
+        tensorrt==11.4.0.106 \
+        torch==2.14.1+cu132 \
+        torchvision==0.29.2+cu132 \
+        torchaudio==2.11.1+cu132 \
+        torchinfo \
+        torchao==0.18.0 \
+      # OCR
+        easyocr \
+      # WebBrowser
+        selenium \
+        webdriver-manager
+
+# torch-tensorrtの適切なバージョンを探すために、インストール済みのtorchとtensorrtのバージョンを指定しておく
+#RUN . /virtualenv/$VENV/bin/activate \
+#    && pip install --no-cache-dir \
+#      torch==2.14.1+cu132 \
+#      tensorrt==11.4.0.106 \
+#      torch-tensorrt==2.14.1 \
+#  --index-url https://download.pytorch.org/whl/cu132 \
+#  --extra-index-url https://pypi.nvidia.com \
+#  --extra-index-url https://pypi.org/simple
+
+# flash-attnは入れない(2026-10-29時点)
+# - FA2: 最新リリース2.8.3.post2はC++17固定で、C++20が必要なtorch 2.13以降ではビルドできない
+#        対応(f87af617fa, edb5c76ee3)は未リリースのmain(2.8.4)のみ
+#        https://github.com/Dao-AILab/flash-attention/issues/2995
+# - FA3: リリースなし(PyPIのflash-attn-3は0.0.0)。H100向けでsm_120(RTX 50系)のカーネルがない
+# - FA4: flash-attn-4はベータ版(4.0.0b37)。正式リリース後に入れる
+#        https://pypi.org/project/flash-attn-4/
+#RUN . /virtualenv/$VENV/bin/activate \
+#    && pip install --no-cache-dir \
+#      "flash-attn-4[cu13]"
+
+# for HRM https://github.com/sapientinc/HRM
+# for pgvector/RAG
+RUN . /virtualenv/$VENV/bin/activate \
+    && pip install --no-cache-dir --no-build-isolation \
+      argdantic \
+      coolname \
+      "hydra-core>=1.3.8" \
+      adam-atan2-pytorch \
+      "python-dotenv>=1.2.2" \
+      PyQt5 \
+      psycopg2-binary \
+      pgvector \
+      psycopg[binary] \
+      "sentence-transformers>=5.6.0"
+
+# for MQTT/pytest/CuTe DSL/DXF/Excel/Office
+# llama-index-readers-fileはpandas<3を要求し、pandasが2.x系に下がるため入れない
+# LlamaCloud系(llama-parse, llama-cloud-services, llama-index-indices-managed-llama-cloud等)は
+# llama-cloudの版が互いに衝突し、llama-cloud-servicesは非推奨のため入れない
+RUN . /virtualenv/$VENV/bin/activate \
+    && pip install --no-cache-dir \
+      paho-mqtt \
+      pytest \
+      "nvidia-cutlass-dsl[cu13]" \
+      ezdxf \
+      openpyxl \
+      oletools \
+      # 旧イメージでは依存関係で入っていたパッケージ \
+      llama-index-cli \
+      async-generator \
+      azure-common \
+      coloredlogs \
+      decorator \
+      humanfriendly \
+      pytz \
+      sentry-sdk \
+      trio-typing \
+      types-certifi \
+      types-urllib3 \
+      # uvicorn[standard]相当 \
+      httptools \
+      uvloop \
+      watchfiles
+
+
+########################################
+# nodejs
+########################################
+# https://github.com/nodesource/distributions/blob/master/README.md
+# https://deb.nodesource.com/setup_14.x - Node.js 14 LTS "Fermium" (recommended)
+# https://deb.nodesource.com/setup_16.x - Node.js 16 "Gallium"
+# https://deb.nodesource.com/setup_18.x - Node.js 18 "Eighteen" (current)
+# Ubuntu 26.04のopenmpi-docはnode-mathjax-full経由でUbuntuのnodejsに依存し、nodesourceのnodejsと共存できないため入れない
+
+RUN curl -fsSL https://deb.nodesource.com/setup_26.x | sudo -E bash - \
+    && sudo apt-get update \
+    && sudo apt-get install -y \
+         nodejs \
+    && dpkg --compare-versions "$(node --version | cut -c2-)" ge 26.13.0 \
+    && sudo npm install -g npm@12.2.1 --no-audit --no-fund \
+    # npm 12.2.1にも同梱される依存ライブラリの修正版を適用する \
+    # CVE-2026-111497はnodejs本体、Undici/ip-addressの修正はnpm同梱分にも必要 \
+    && cd /tmp \
+    && npm pack --ignore-scripts undici@6.29.1 ip-address@10.7.5 \
+    && sudo tar -xzf undici-6.29.1.tgz --strip-components=1 -C "$(npm root -g)/npm/node_modules/undici" \
+    && sudo tar -xzf ip-address-10.7.5.tgz --strip-components=1 -C "$(npm root -g)/npm/node_modules/ip-address" \
+    && rm -f undici-6.29.1.tgz ip-address-10.7.5.tgz \
+    && sudo apt autoremove -y \
+    && sudo rm -rf /var/lib/apt/lists/*
+
+
+########################################
+# mermaid-cli
+########################################
+# npm 12はinstall scriptsを既定で実行しないため、Chromeを取得するpuppeteerのpostinstallだけを許可する
+# mermaid-cli 12.0.0が同梱するkatexを修正版に差し替える
+RUN sudo PUPPETEER_CACHE_DIR=/home/$USERNAME/.cache/puppeteer npm install -g @mermaid-js/mermaid-cli@12.0.0 --allow-scripts=puppeteer --no-audit --no-fund \
+    && sudo chown -R $USERNAME:$USERNAME /home/$USERNAME/.cache/puppeteer \
+    && MERMAID_CLI_DIR="$(npm root -g)/@mermaid-js/mermaid-cli" \
+    && cd /tmp \
+    # mermaid 12.2.0はkatex ^0.18.0を要求するため0.18系の最新を使う \
+    # katex 0.18.11はcommander ^15.0.0を要求するため、katex配下のcommanderも差し替える \
+    && npm pack --ignore-scripts katex@0.18.11 commander@15.0.0 \
+    && sudo tar -xzf katex-0.18.11.tgz --strip-components=1 -C "$MERMAID_CLI_DIR/node_modules/katex" \
+    && sudo tar -xzf commander-15.0.0.tgz --strip-components=1 -C "$MERMAID_CLI_DIR/node_modules/katex/node_modules/commander" \
+    && rm -f katex-0.18.11.tgz commander-15.0.0.tgz \
+    && sudo node -e 'const fs = require("node:fs"); const f = process.argv[1]; const p = JSON.parse(fs.readFileSync(f)); p.dependencies.katex = "^0.18.11"; p.overrides = {...p.overrides, katex: "^0.18.11"}; fs.writeFileSync(f, JSON.stringify(p, null, 2) + "\n");' "$MERMAID_CLI_DIR/package.json" \
+    && node -e 'if (require(process.argv[1]).version !== "0.18.11") process.exit(1)' "$MERMAID_CLI_DIR/node_modules/katex/package.json" \
+    && node -e 'if (require(process.argv[1]).version !== "15.0.0") process.exit(1)' "$MERMAID_CLI_DIR/node_modules/katex/node_modules/commander/package.json" \
+    && npm ls -g --all > /dev/null
+
+
+########################################
+# JupyterLab4 設定
+########################################
+RUN . /virtualenv/$VENV/bin/activate \
+    ####################
+    # Jupyter Lab Vertual Env
+    # To set the virtualenv as "python3", jupyter notebooks works in virtualenv.
+    ####################
+    && python -m ipykernel install --name python3 --user \
+    ####################
+    # Jupyter Lab password 設定
+    ####################
+    && mkdir -p $HOME/.jupyter \
+    && export PASSWORD_HASH=`python -c 'from argon2 import PasswordHasher;print(PasswordHasher(memory_cost=10240,time_cost=10,parallelism=8).hash("jupyter"))'` \
+    && printf '{\n\
+  "IdentityProvider": {\n\
+    "hashed_password": "argon2:'$PASSWORD_HASH'"\n\
+  }\n\
+}' > $HOME/.jupyter/jupyter_server_config.json \
+    ####################
+    # Disable Jupyter autosave
+    ####################
+    && mkdir -p ~/.jupyter/lab/user-settings/\@jupyterlab/docmanager-extension \
+    && printf '{\n\
+    // Document Manager\n\
+    // @jupyterlab/docmanager-extension:plugin\n\
+    // Document Manager settings.\n\
+    // ***************************************\n\
+\n\
+    // Autosave Documents\n\
+    // Whether to autosave documents\n\
+    "autosave": false\n\
+}'\
+>  ~/.jupyter/lab/user-settings/\@jupyterlab/docmanager-extension/plugin.jupyterlab-settings \
+    ####################
+    # Jupyter Dark Terminal Theme
+    ####################
+    && mkdir -p ~/.jupyter/lab/user-settings/\@jupyterlab/terminal-extension \
+    && printf '{\n\
+    // Terminal\n\
+    // @jupyterlab/terminal-extension:plugin\n\
+    // Terminal settings.\n\
+    // *************************************\n\
+\n\
+    // Theme\n\
+    // The theme for the terminal.\n\
+    "theme": "dark"\n\
+}'\
+>  ~/.jupyter/lab/user-settings/\@jupyterlab/terminal-extension/plugin.jupyterlab-settings
+
+
+########################################
+# JupyterLab terminal DEFAULT_ANSI_COLORS Tango to Rxvt-LightBlue/Aquamarine
+########################################
+RUN grep -rl --include=\*.js --include=\*.ts --include=\*.css --include=\*.html \
+    "#3465a4" /virtualenv/python3/share/jupyter \
+  | while read file; do \
+    echo "パッチ中: $file"; \
+    sed -i '\
+      s/#2e3436/#000000/g;\
+      s/#cc0000/#cd0000/g;\
+      s/#4e9a06/#00cd00/g;\
+      s/#c4a000/#cdcd00/g;\
+      s/#3465a4/#add8e6/g;\
+      s/#75507b/#cd00cd/g;\
+      s/#06989a/#00cdcd/g;\
+      s/#d3d7cf/#faebd7/g;\
+      s/#555753/#404040/g;\
+      s/#ef2929/#ff0000/g;\
+      s/#8ae234/#00ff00/g;\
+      s/#fce94f/#ffff00/g;\
+      s/#729fcf/#7fffd4/g;\
+      s/#ad7fa8/#ff00ff/g;\
+      s/#34e2e2/#00ffff/g;\
+      s/#eeeeec/#ffffff/g;\
+    ' "$file"; \
+  done
+
+
+# root権限でjupyter labを起動する場合もUSERNAMEと同じ設定を適用する
+RUN cd \
+    && sudo cp -r .jupyter /root/
+
+########################################
+# Launch JupyterLab from virtualenv with root dir and default dir
+########################################
+# https://stackoverflow.com/questions/69038787/how-to-set-default-folder-in-jupyterlab-file-browser
+#CMD . /virtualenv/python3/bin/activate && exec bash -c "jupyter-lab --ip=0.0.0.0 --no-browser --ServerApp.root_dir=/ --LabApp.default_url=/lab?file-browser-path=$HOME/data/Notebooks"
+CMD . /virtualenv/python3/bin/activate && exec bash -c "jupyter-lab --ip=0.0.0.0 --no-browser --ServerApp.root_dir=/ --LabApp.default_url=/lab?file-browser-path=$HOME"
+
+
+# https://github.com/keras-team/keras-tuner/issues/317
+RUN echo "export LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libgomp.so.1" >> ~/.bashrc
+
+
+########################################
+# torch2trt
+########################################
+# torch2trtは入れない(2026-10-29時点)
+# TensorRT 11で削除されたAPI(CalibrationAlgoType等)を使っていて変換に失敗する。本家の更新は2024-05-03で止まっている
+# https://github.com/NVIDIA-AI-IOT/torch2trt
+
+########################################
+# llama.cpp
+########################################
+RUN . /virtualenv/$VENV/bin/activate \
+    && mkdir -p ~/github \
+    && cd ~/github \
+    && git clone https://github.com/ggerganov/llama.cpp
+
+
+########################################
+# models
+########################################
+RUN . /virtualenv/$VENV/bin/activate \
+    && python -c "import torchvision; \
+         model = torchvision.models.resnet18(weights=torchvision.models.ResNet18_Weights.DEFAULT);"
+
+
+########################################
+# docker-cli
+########################################
+RUN sudo apt-get update \
+    && sudo apt-get install -y \
+         docker.io \
+    && sudo apt autoremove -y \
+    && sudo rm -rf /var/lib/apt/lists/*
+
+
+########################################
+# Python package dependencies
+########################################
+RUN . /virtualenv/$VENV/bin/activate \
+    && pip check \
+    && sudo python3 -m pip check
